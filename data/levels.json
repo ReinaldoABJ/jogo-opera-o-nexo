@@ -1,0 +1,118 @@
+{
+  "pool_treino": [
+    {
+      "id": "treino_setor_01",
+      "sector_name": "Setor 01 — Edifício Aurora",
+      "coordinates": { "x": 160, "y": 140 },
+      "situation_report": "Incêndio moderado no 4º andar. Civis sinalizando no heliponto.",
+      "sensors": {
+        "CIVIS_DETECTADOS": true,
+        "FOGO_ATIVO": true,
+        "GAS_TOXICO": false,
+        "BATERIA_DRONE": true
+      },
+      "protocols": [
+        {
+          "id": "proto_evac",
+          "title": "Protocolo Alpha — Evacuação Aérea",
+          "template": "(CIVIS_DETECTADOS [ ? ] BATERIA_DRONE) [ ? ] NOT(GAS_TOXICO)",
+          "slots": 2,
+          "correct_operators": ["AND", "AND"],
+          "hint": "Para autorizar o resgate, precisamos de civis E bateria suficiente, sem presença de gás."
+        },
+        {
+          "id": "proto_extintor",
+          "title": "Protocolo Bravo — Lançamento de Retardante",
+          "template": "(FOGO_ATIVO [ ? ] BATERIA_DRONE) [ ? ] NOT(CIVIS_DETECTADOS)",
+          "slots": 2,
+          "correct_operators": ["AND", "AND"],
+          "hint": "O retardante químico só pode ser lançado onde houver fogo E sem civis na linha de tiro."
+        }
+      ],
+      "time_limit": 60,
+      "base_score": 1000
+    },
+    {
+      "id": "treino_setor_02",
+      "sector_name": "Setor 02 — Hospital Central",
+      "coordinates": { "x": 420, "y": 280 },
+      "situation_report": "Queda de energia no setor de UTI. Vazamento de oxigênio sob controle.",
+      "sensors": {
+        "CIVIS_DETECTADOS": true,
+        "FOGO_ATIVO": false,
+        "GAS_TOXICO": false,
+        "ENERGIA_ESTAVEL": false
+      },
+      "protocols": [
+        {
+          "id": "proto_gerador",
+          "title": "Protocolo Alpha — Acoplamento de Bateria Móvel",
+          "template": "(CIVIS_DETECTADOS [ ? ] NOT(ENERGIA_ESTAVEL)) [ ? ] NOT(FOGO_ATIVO)",
+          "slots": 2,
+          "correct_operators": ["AND", "AND"],
+          "hint": "O drone transfere energia se houver civis E falta de energia, sem fogo ao redor."
+        }
+      ],
+      "time_limit": 60,
+      "base_score": 1200
+    }
+  ],
+  "pool_ranqueado": [
+    {
+      "id": "ranqueado_setor_01",
+      "sector_name": "Zona Crítica — Usina Termoelétrica",
+      "coordinates": { "x": 280, "y": 200 },
+      "situation_report": "Vazamento térmico e alarmes de contenção. Telemetria gerada pela semente operacional.",
+      "param_generators": {
+        "CIVIS_DETECTADOS": { "type": "boolean" },
+        "FOGO_ATIVO": { "type": "boolean" },
+        "GAS_TOXICO": { "type": "boolean" },
+        "BATERIA_DRONE": { "type": "boolean", "default": true }
+      },
+      "protocols": [
+        {
+          "id": "proto_infiltracao",
+          "title": "Protocolo Tático — Varredura de Sobreviventes",
+          "template": "(CIVIS_DETECTADOS [ ? ] BATERIA_DRONE) [ ? ] NOT(GAS_TOXICO)",
+          "slots": 2,
+          "correct_operators": ["AND", "AND"],
+          "hint": "Analise os sensores em tempo real antes de enviar o comando."
+        },
+        {
+          "id": "proto_bloqueio",
+          "title": "Protocolo Tático — Fechamento de Válvula",
+          "template": "(FOGO_ATIVO [ ? ] GAS_TOXICO) [ ? ] BATERIA_DRONE",
+          "slots": 2,
+          "correct_operators": ["OR", "AND"],
+          "hint": "Se houver fogo OU gás tóxico presente, a válvula deve ser selada com energia de apoio."
+        }
+      ],
+      "time_limit": 45,
+      "base_score": 1500
+    },
+    {
+      "id": "ranqueado_setor_02",
+      "sector_name": "Zona Crítica — Complexo Escolar Norte",
+      "coordinates": { "x": 520, "y": 120 },
+      "situation_report": "Desabamento parcial na ala esportiva. Visibilidade reduzida por poeira térmica.",
+      "param_generators": {
+        "CIVIS_DETECTADOS": { "type": "boolean" },
+        "FOGO_ATIVO": { "type": "boolean" },
+        "ESTRUTURA_ABALADA": { "type": "boolean" },
+        "BATERIA_DRONE": { "type": "boolean", "default": true }
+      },
+      "protocols": [
+        {
+          "id": "proto_corda",
+          "title": "Protocolo Tático — Lançamento de Cabo Guia",
+          "template": "(CIVIS_DETECTADOS [ ? ] NOT(ESTRUTURA_ABALADA)) [ ? ] BATERIA_DRONE",
+          "slots": 2,
+          "correct_operators": ["AND", "AND"],
+          "hint": "Cabo só deve ser lançado se a estrutura não estiver abalada."
+        }
+      ],
+      "time_limit": 40,
+      "base_score": 1800
+    }
+  ]
+}

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operação NEXO: Comando & Resgate</title>
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+  <!-- Centro de Comando Tático Principal -->
+  <main id="nexo-command-center" role="application" aria-label="Operação NEXO Centro de Comando">
+    
+    <!-- Barra Superior Tática -->
+    <header id="command-header">
+      <div class="header-title">
+        <span>🛰️</span>
+        <span data-i18n="game_title">Operação NEXO: Comando & Resgate</span>
+      </div>
+
+      <div class="header-telemetry">
+        <div id="hud-score-badge" class="telemetry-badge" style="color:var(--military-green);">SCORE: 0</div>
+        <div id="hud-time-badge" class="telemetry-badge" style="color:var(--military-amber);">TIME: 60s</div>
+        <div id="hud-streak-badge" class="telemetry-badge">🔥 OFENSIVA: 0</div>
+      </div>
+
+      <div style="display:flex; gap:6px;">
+        <button id="btn-pause-game" class="btn-secondary-tactical" title="Pausar Operação (ESC)">⏸️ Pausar</button>
+        <button id="btn-return-menu" class="btn-secondary-tactical" title="Menu Principal">🏠 Menu</button>
+        <button id="btn-open-manual" class="btn-secondary-tactical" title="Manual do Comandante">📖 Manual</button>
+        <button id="btn-open-a11y" class="btn-secondary-tactical" title="Acessibilidade">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Tarja Indicadora de Modo -->
+    <div id="mode-indicator-bar">
+      <span id="mode-badge-label" class="mode-badge-training">MODO: CENTRAL DE TREINAMENTO (LIVRE)</span>
+      <span id="mode-rule-notice" style="color:var(--text-muted);">Score isolado de estudo</span>
+    </div>
+
+    <!-- Área de Operações: Mapa Satélite (Esquerda) + Console de Protocolos (Direita) -->
+    <div id="tactical-workspace">
+      
+      <!-- Visor de Reconhecimento por Satélite -->
+      <section id="satellite-map-container" aria-label="Visor Aéreo de Satélite">
+        <div id="map-crosshair-overlay">
+          <span>RECON: SAT-NEXO-01</span> | <span>GRID: ATIVO</span>
+        </div>
+        <canvas id="satellite-canvas" width="700" height="520"></canvas>
+      </section>
+
+      <!-- Painel Lateral de Controle & Lógica -->
+      <aside id="lateral-console" aria-label="Painel de Protocolos Lógicos">
+        <!-- O conteúdo dos protocolos, sensores e slots é montado dinamicamente -->
+      </aside>
+
+      <!-- Overlay: Menu Principal Inicial -->
+      <div id="main-menu-overlay" class="fullscreen-overlay" role="dialog" aria-modal="true">
+        <div class="menu-card">
+          <div style="font-size:2.4rem;">🚁</div>
+          <h1 class="menu-title" data-i18n="game_title">Operação NEXO: Comando & Resgate</h1>
+          <p class="menu-subtitle" data-i18n="game_subtitle">Centro de Comando Tático — Defesa Civil & Resgate</p>
+          
+          <div class="menu-actions">
+            <button id="menu-btn-ranked" class="mode-btn-ranked">
+              <span>⚔️ Desafio Diário (Ranqueado)</span>
+              <span id="ranked-lock-badge" style="font-size:0.75rem; background:#221c0e; padding:2px 6px; border-radius:3px;">1x POR DIA</span>
+            </button>
+            <button id="menu-btn-training" class="mode-btn-training">
+              <span>🎓 Central de Treinamento</span>
+              <span style="font-size:0.75rem; background:#122014; padding:2px 6px; border-radius:3px;">LIVRE / ILIMITADO</span>
+            </button>
+            <div style="display:flex; gap:8px; margin-top:6px;">
+              <button id="menu-btn-manual" class="btn-secondary-tactical" style="flex:1;">📖 Manual Lógico</button>
+              <button id="menu-btn-a11y" class="btn-secondary-tactical" style="flex:1;">⚙️ Opções</button>
+            </div>
+            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:12px; letter-spacing:0.5px; opacity:0.85;">
+              Co-criado por <strong>Reinaldo Júnior</strong> & <strong>⚡ L.O.G.O.S.</strong> • UFMT
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlay: Pausa Operacional -->
+      <div id="pause-overlay" class="fullscreen-overlay" style="display:none;" role="dialog" aria-modal="true">
+        <div class="menu-card" style="max-width:380px;">
+          <h2 class="menu-title" style="color:var(--military-amber);">⏸️ OPERAÇÃO PAUSADA</h2>
+          <p class="menu-subtitle">O tempo e a telemetria do drone estão congelados.</p>
+          <div class="menu-actions">
+            <button id="pause-btn-resume" class="btn-tactical">▶️ Continuar Operação</button>
+            <button id="pause-btn-restart" class="btn-secondary-tactical">🔄 Reiniciar Setor</button>
+            <button id="pause-btn-menu" class="btn-secondary-tactical">🏠 Voltar ao Menu Principal</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlay: Vitória / Debriefing -->
+      <div id="victory-overlay" class="fullscreen-overlay" style="display:none;" role="dialog" aria-modal="true">
+        <div class="menu-card victory-box">
+          <div style="font-size:2rem;">🎖️</div>
+          <h2 class="menu-title" style="color:var(--military-green);" data-i18n="victory_title">SETOR PACIFICADO COM SUCESSO!</h2>
+          <div id="victory-stars" class="stars-rating">⭐⭐⭐</div>
+          <p id="victory-score-report" style="font-size:1.1rem;">Pontuação: <strong>+1000</strong></p>
+          <p id="victory-details-report" style="color:var(--text-muted); font-size:0.85rem;">Protocolo executado com precisão lógica.</p>
+          <div class="menu-actions" style="margin-top:12px;">
+            <button id="victory-btn-next" class="btn-tactical">Próximo Setor ➡️</button>
+            <button id="victory-btn-menu" class="btn-secondary-tactical">🏠 Menu Principal</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlay: Derrota / Alarme -->
+      <div id="defeat-overlay" class="fullscreen-overlay" style="display:none;" role="dialog" aria-modal="true">
+        <div class="menu-card defeat-box">
+          <div style="font-size:2rem;">💥</div>
+          <h2 class="menu-title" style="color:var(--military-danger);" data-i18n="gameover_title">FALHA OPERACIONAL!</h2>
+          <p id="defeat-reason" style="color:#ff9999; font-size:0.9rem; line-height:1.4;">Os operadores booleanos inseridos violaram as regras de segurança dos sensores.</p>
+          <div class="menu-actions" style="margin-top:12px;">
+            <button id="defeat-btn-retry" class="btn-tactical-amber">🔄 Reconfigurar Protocolo</button>
+            <button id="defeat-btn-manual" class="btn-secondary-tactical">📖 Consultar Manual Lógico</button>
+            <button id="defeat-btn-menu" class="btn-secondary-tactical">🏠 Menu Principal</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Modal: Manual Lógico do Comandante -->
+  <div id="manual-modal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="manual-title">
+    <div class="modal-box">
+      <h2 id="manual-title" class="console-section-title" style="font-size:1.1rem;" data-i18n="manual_title">
+        📖 Manual Lógico do Comandante (Tabela-Verdade)
+      </h2>
+      
+      <div class="manual-entry">
+        <strong>🟢 Operador E (AND / &&):</strong>
+        <p data-i18n="manual_and">Ambas as condições devem ser verdadeiras para o drone entrar em ação. Se uma falhar, o resultado é Falso.</p>
+      </div>
+
+      <div class="manual-entry">
+        <strong>🟡 Operador OU (OR / ||):</strong>
+        <p data-i18n="manual_or">Se pelo menos uma das condições for verdadeira, a manobra já é autorizada.</p>
+      </div>
+
+      <div class="manual-entry">
+        <strong>🔴 Operador NÃO (NOT / !):</strong>
+        <p data-i18n="manual_not">Inverte a condição. Por exemplo: NOT(GÁS_TÓXICO) é Verdadeiro quando NÃO há gás tóxico no local.</p>
+      </div>
+
+      <div class="manual-entry">
+        <strong>🔵 Operador XOR (OU Exclusivo):</strong>
+        <p data-i18n="manual_xor">Apenas uma das condições pode ser verdadeira, nunca ambas ao mesmo tempo.</p>
+      </div>
+
+      <button id="btn-close-manual" class="btn-tactical" style="margin-top:10px;" data-i18n="btn_proceed">
+        Entendido & Retornar à Operação
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal: Acessibilidade & Opções -->
+  <div id="a11y-modal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="a11y-title">
+    <div class="modal-box">
+      <h2 id="a11y-title" class="console-section-title" style="font-size:1.1rem;" data-i18n="accessibility_title">
+        ⚙️ Acessibilidade & Opções
+      </h2>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <label for="select-lang" data-i18n="lang_select">Idioma:</label>
+        <select id="select-lang" style="background:#111417; color:#fff; border:1px solid var(--panel-border); padding:6px;">
+          <option value="pt-br">Português (PT-BR)</option>
+          <option value="en">English (EN)</option>
+          <option value="es">Español (ES)</option>
+        </select>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <label for="select-colorblind" data-i18n="colorblind_mode">Filtro de Visão:</label>
+        <select id="select-colorblind" style="background:#111417; color:#fff; border:1px solid var(--panel-border); padding:6px;">
+          <option value="none">Padrão Militar</option>
+          <option value="protanopia">Protanopia (Ajuste Vermelho)</option>
+          <option value="deuteranopia">Deuteranopia (Ajuste Verde)</option>
+          <option value="tritanopia">Tritanopia (Ajuste Azul)</option>
+          <option value="high-contrast">Alto Contraste Militar</option>
+        </select>
+      </div>
+
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="checkbox" id="check-reduced-motion">
+        <label for="check-reduced-motion" data-i18n="reduced_motion">Desativar flashes e tremores de tela</label>
+      </div>
+
+      <button id="btn-close-a11y" class="btn-tactical" style="margin-top:10px;" data-i18n="btn_proceed">
+        Fechar & Aplicar
+      </button>
+    </div>
+  </div>
+
+  <!-- Script Universal do Jogo -->
+  <script src="./game_app.js"></script>
+</body>
+</html>

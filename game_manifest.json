@@ -1,0 +1,26 @@
+{
+  "id": "jogo_01_operacao_nexo",
+  "title": "Operação NEXO: Comando & Resgate",
+  "authors": [
+    {
+      "name": "Reinaldo Júnior",
+      "role": "Concepção do Projeto, Design Pedagógico & Validação Acadêmica (UFMT)"
+    },
+    {
+      "name": "⚡ L.O.G.O.S.",
+      "role": "Agente Autônomo de Engenharia de Jogos & Arquitetura de Sistemas (Antigravity AI)"
+    }
+  ],
+  "discipline": "Lógica de Programação — Álgebra Booleana",
+  "version": "1.0.0",
+  "description": "Jogo tático e educativo de lógica booleana desenvolvido para a plataforma GameHub UFMT. Simulação tática militar onde o jogador programa protocolos de drones de resgate utilizando operadores booleanos em setores de emergência urbana.",
+  "academic_area": "Lógica & Algoritmos",
+  "difficulty_modes": ["easy", "medium", "hard"],
+  "supported_languages": ["pt-br", "en", "es"],
+  "anticheat": {
+    "dynamic_seeds": true,
+    "time_decay": true,
+    "shuffle": true,
+    "telemetry": true
+  }
+}

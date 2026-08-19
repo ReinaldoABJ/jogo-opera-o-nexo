@@ -1,0 +1,512 @@
+/* ==========================================================================
+   Operação NEXO: Comando & Resgate — Estética Militar & Centro Tático
+   ========================================================================== */
+
+:root {
+  /* Paleta Militar & Satélite Tático */
+  --bg-military: #111417;
+  --panel-bg: #1c2228;
+  --panel-header: #273038;
+  --panel-border: #384550;
+  
+  --text-tactical: #e1e7ec;
+  --text-muted: #8b9baa;
+  
+  --military-amber: #e5a00d;
+  --military-green: #4ec95c;
+  --military-danger: #e04b47;
+  --military-cyan: #3ca9d6;
+  --military-olive: #4a5c4c;
+  
+  --font-mono: 'Consolas', 'Courier New', monospace;
+  --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  
+  --border-radius: 4px;
+}
+
+/* Modos Daltônicos e Alto Contraste */
+body.theme-high-contrast {
+  --bg-military: #000000;
+  --panel-bg: #0d0d0d;
+  --panel-header: #1a1a1a;
+  --panel-border: #ffffff;
+  --text-tactical: #ffffff;
+  --text-muted: #ffff00;
+  --military-amber: #ffff00;
+  --military-green: #00ff00;
+  --military-danger: #ff0044;
+  --military-cyan: #00ffff;
+}
+
+body.theme-protanopia {
+  --military-green: #0088cc;
+  --military-danger: #dd6622;
+}
+
+body.theme-deuteranopia {
+  --military-green: #00a896;
+  --military-danger: #eb4d55;
+}
+
+body.theme-tritanopia {
+  --military-green: #d81159;
+  --military-cyan: #00a896;
+}
+
+/* Modo Sem Animações Rápidas */
+body.reduced-motion * {
+  animation: none !important;
+  transition: none !important;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-military);
+  color: var(--text-tactical);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  user-select: none;
+}
+
+#nexo-command-center {
+  width: 100%;
+  max-width: 1100px;
+  background-color: var(--panel-bg);
+  border: 2px solid var(--panel-border);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Topo do Centro de Comando */
+#command-header {
+  background-color: var(--panel-header);
+  border-bottom: 2px solid var(--panel-border);
+  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-title {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--military-amber);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-telemetry {
+  display: flex;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.telemetry-badge {
+  background-color: #111417;
+  padding: 4px 8px;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--border-radius);
+}
+
+/* Tarja Indicadora de Modo Ativo */
+#mode-indicator-bar {
+  padding: 4px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #151a1e;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.mode-badge-training {
+  color: var(--military-green);
+}
+
+.mode-badge-ranked {
+  color: var(--military-amber);
+}
+
+/* Layout Principal: Mapa Satélite (Esquerda) + Console Tático (Direita) */
+#tactical-workspace {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  min-height: 540px;
+  position: relative;
+}
+
+@media (max-width: 860px) {
+  #tactical-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Área do Mapa Satélite */
+#satellite-map-container {
+  position: relative;
+  background-color: #171d22;
+  border-right: 2px solid var(--panel-border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+canvas#satellite-canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#map-crosshair-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--military-green);
+  background: rgba(17, 20, 23, 0.85);
+  padding: 4px 8px;
+  border: 1px solid var(--military-olive);
+  border-radius: var(--border-radius);
+  pointer-events: none;
+}
+
+/* Painel Lateral de Controle & Protocolos */
+#lateral-console {
+  background-color: var(--panel-bg);
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.console-section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--military-amber);
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 4px;
+}
+
+/* Cartões de Sensores Térmicos/Ambientais */
+.sensors-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sensor-box {
+  background-color: #14181c;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--border-radius);
+  padding: 6px 8px;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sensor-box.val-true {
+  border-color: var(--military-green);
+  color: var(--military-green);
+}
+
+.sensor-box.val-false {
+  border-color: var(--panel-border);
+  color: var(--text-muted);
+}
+
+/* Construtor de Protocolo Lógico (Slots) */
+.protocol-card {
+  background-color: #15191d;
+  border: 1px solid var(--military-olive);
+  border-radius: var(--border-radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.protocol-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.formula-display {
+  background-color: #0b0d0f;
+  border: 1px solid #2a333c;
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  border-radius: var(--border-radius);
+  color: var(--text-tactical);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.slot-btn {
+  background-color: #273038;
+  color: var(--military-amber);
+  border: 1px dashed var(--military-amber);
+  padding: 2px 8px;
+  font-weight: 700;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.slot-btn:hover, .slot-btn:focus-visible {
+  background-color: var(--military-amber);
+  color: #000;
+}
+
+/* Seletor de Operadores */
+.operator-palette {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.op-btn {
+  background-color: #2a333c;
+  color: #fff;
+  border: 1px solid var(--panel-border);
+  padding: 6px 12px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-radius: 3px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.op-btn:hover, .op-btn:focus-visible {
+  background-color: var(--military-cyan);
+  color: #000;
+}
+
+/* Botões Militares */
+.btn-tactical {
+  background-color: var(--military-green);
+  color: #000;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border: none;
+  padding: 10px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+}
+
+.btn-tactical:hover, .btn-tactical:focus-visible {
+  background-color: #5deb6d;
+}
+
+.btn-tactical-amber {
+  background-color: var(--military-amber);
+  color: #000;
+}
+.btn-tactical-amber:hover, .btn-tactical-amber:focus-visible {
+  background-color: #f7b328;
+}
+
+.btn-secondary-tactical {
+  background-color: #2a333c;
+  color: var(--text-tactical);
+  border: 1px solid var(--panel-border);
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+}
+
+.btn-secondary-tactical:hover {
+  background-color: #384550;
+}
+
+/* ==========================================================================
+   Telas Especiais: Menu Principal, Pausa, Vitória e Derrota
+   ========================================================================== */
+
+.fullscreen-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(17, 20, 23, 0.94);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 500;
+  padding: 20px;
+}
+
+.menu-card {
+  background-color: var(--panel-bg);
+  border: 2px solid var(--panel-border);
+  border-radius: var(--border-radius);
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+}
+
+.menu-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--military-amber);
+  letter-spacing: 1px;
+}
+
+.menu-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.mode-btn-ranked {
+  background-color: #3a3219;
+  border: 1px solid var(--military-amber);
+  color: var(--military-amber);
+  padding: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mode-btn-ranked:hover {
+  background-color: var(--military-amber);
+  color: #000;
+}
+
+.mode-btn-training {
+  background-color: #1e2b20;
+  border: 1px solid var(--military-green);
+  color: var(--military-green);
+  padding: 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mode-btn-training:hover {
+  background-color: var(--military-green);
+  color: #000;
+}
+
+/* Animação de Vitória */
+.victory-box {
+  background: radial-gradient(circle at center, #1b3820 0%, #111417 80%);
+  border: 2px solid var(--military-green);
+  animation: pulse-green 1.5s infinite alternate;
+}
+
+@keyframes pulse-green {
+  from { box-shadow: 0 0 10px rgba(78, 201, 92, 0.2); }
+  to { box-shadow: 0 0 25px rgba(78, 201, 92, 0.6); }
+}
+
+.stars-rating {
+  font-size: 2.2rem;
+  margin: 6px 0;
+  color: var(--military-amber);
+  letter-spacing: 4px;
+}
+
+/* Animação de Derrota */
+.defeat-box {
+  background: radial-gradient(circle at center, #3d1b1a 0%, #111417 80%);
+  border: 2px solid var(--military-danger);
+  animation: pulse-red 1s infinite alternate;
+}
+
+@keyframes pulse-red {
+  from { box-shadow: 0 0 10px rgba(224, 75, 71, 0.2); }
+  to { box-shadow: 0 0 25px rgba(224, 75, 71, 0.6); }
+}
+
+/* Modais de Manual e Acessibilidade */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  z-index: 1000;
+}
+
+.modal-box {
+  background-color: var(--panel-bg);
+  border: 2px solid var(--panel-border);
+  border-radius: var(--border-radius);
+  padding: 20px;
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.manual-entry {
+  background-color: #14181c;
+  border-left: 3px solid var(--military-amber);
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
