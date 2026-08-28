@@ -70,6 +70,9 @@
               <span>🎓 Central de Treinamento</span>
               <span style="font-size:0.75rem; background:#122014; padding:2px 6px; border-radius:3px;">LIVRE / ILIMITADO</span>
             </button>
+            <button id="menu-btn-tutorial" class="btn-secondary-tactical" style="width:100%; border-color:var(--military-amber); color:var(--military-amber); font-weight:bold; margin-top:2px;">
+              💡 Tutorial Tático Interativo (Onboarding)
+            </button>
             <div style="display:flex; gap:8px; margin-top:6px;">
               <button id="menu-btn-manual" class="btn-secondary-tactical" style="flex:1;">📖 Manual Lógico</button>
               <button id="menu-btn-a11y" class="btn-secondary-tactical" style="flex:1;">⚙️ Opções</button>
@@ -195,6 +198,24 @@
       <button id="btn-close-a11y" class="btn-tactical" style="margin-top:10px;" data-i18n="btn_proceed">
         Fechar & Aplicar
       </button>
+    </div>
+  </div>
+
+  <!-- Modal: Tutorial Tático Interativo (Onboarding) -->
+  <div id="tutorial-modal" class="modal-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="tutorial-step-title">
+    <div class="modal-box" style="max-width:560px; border:2px solid var(--military-amber); background:#151a1e;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(229,160,13,0.3); padding-bottom:8px; margin-bottom:12px;">
+        <span style="color:var(--military-amber); font-weight:bold; font-size:0.85rem; letter-spacing:1px;">🛰️ BRIEFING OPERACIONAL & ONBOARDING</span>
+        <span id="tutorial-step-counter" style="color:var(--text-muted); font-size:0.8rem; font-family:monospace;">Passo 1 de 4</span>
+      </div>
+      <h3 id="tutorial-step-title" style="color:#ffffff; margin:0 0 10px 0; font-size:1.15rem;"></h3>
+      <div id="tutorial-step-content" style="color:#c5d1d9; font-size:0.9rem; line-height:1.55; min-height:110px;"></div>
+      
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+        <button id="tutorial-btn-prev" class="btn-secondary-tactical" style="visibility:hidden;">⬅️ Anterior</button>
+        <button id="tutorial-btn-skip" class="btn-secondary-tactical" style="font-size:0.75rem; color:var(--text-muted);">Pular Tutorial</button>
+        <button id="tutorial-btn-next" class="btn-tactical">Próximo ➡️</button>
+      </div>
     </div>
   </div>
 

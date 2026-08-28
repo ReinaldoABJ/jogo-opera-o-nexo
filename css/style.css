@@ -280,11 +280,57 @@ canvas#satellite-canvas {
   font-weight: 700;
   border-radius: 3px;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .slot-btn:hover, .slot-btn:focus-visible {
   background-color: var(--military-amber);
   color: #000;
+}
+
+.slot-btn.is-active {
+  border-color: #ffffff;
+  background-color: #3b4652;
+  box-shadow: 0 0 8px rgba(229, 160, 13, 0.4);
+}
+
+.polarity-btn {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.polarity-btn.is-direct {
+  background-color: rgba(78, 201, 92, 0.12);
+  color: var(--military-green);
+  border: 1px solid rgba(78, 201, 92, 0.4);
+}
+
+.polarity-btn.is-direct:hover {
+  background-color: rgba(78, 201, 92, 0.3);
+}
+
+.polarity-btn.is-not {
+  background-color: rgba(224, 75, 71, 0.2);
+  color: #ff7777;
+  border: 1px solid #e04b47;
+  box-shadow: 0 0 6px rgba(224, 75, 71, 0.3);
+}
+
+.polarity-btn.is-not:hover {
+  background-color: rgba(224, 75, 71, 0.4);
+}
+
+.sensor-token {
+  color: #d8e2e9;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0 2px;
 }
 
 /* Seletor de Operadores */

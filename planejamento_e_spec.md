@@ -63,3 +63,13 @@
 - `data/levels.json` e `data/levels_data.js` — Banco de dados de setores.
 - `data/i18n.json` e `data/i18n_data.js` — Traduções em PT-BR, EN e ES.
 - `game_manifest.json` — Manifesto de integração para o backend.
+
+---
+
+## 🚀 6. Roadmap & Futuras Atualizações Planejadas
+1. **Tutorial & Onboarding:** Fluxo guiado para novos recrutas no primeiro setor.
+2. **Correção de Aspect-Ratio do Mapa:** Ajuste de proporção no Canvas 2D eliminando distorção visual da imagem de satélite.
+3. **Mecânica Multissetorial:** Avaliação de múltiplos pontos em cadeia por missão (combate à repetitividade).
+4. **Tempo Crescente & Gravidade Dinâmica:** Pressão temporal onde a demora expande riscos ambientais.
+5. **Bloqueio de Pausa no Modo Ranqueado:** Blindagem antifraude desativando a pausa durante o Desafio Diário.
+
