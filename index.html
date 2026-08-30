@@ -57,7 +57,12 @@
       <!-- Overlay: Menu Principal Inicial -->
       <div id="main-menu-overlay" class="fullscreen-overlay" role="dialog" aria-modal="true">
         <div class="menu-card">
-          <div style="font-size:2.4rem;">🚁</div>
+          <div class="menu-drone-video-box" style="display:flex; justify-content:center; margin-bottom:8px;">
+            <div style="position:relative; width:96px; height:96px; border-radius:50%; overflow:hidden; border:2px solid var(--military-amber); box-shadow:0 0 18px rgba(229,160,13,0.4); background:#111518;">
+              <video src="./assets/sprites/drone_square_512.mp4" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover; display:block; filter:contrast(1.08) brightness(1.02);"></video>
+              <div style="position:absolute; inset:0; border-radius:50%; border:1px dashed rgba(229,160,13,0.4); pointer-events:none;"></div>
+            </div>
+          </div>
           <h1 class="menu-title" data-i18n="game_title">Operação NEXO: Comando & Resgate</h1>
           <p class="menu-subtitle" data-i18n="game_subtitle">Centro de Comando Tático — Defesa Civil & Resgate</p>
           
