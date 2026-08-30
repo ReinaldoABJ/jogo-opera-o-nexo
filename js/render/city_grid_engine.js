@@ -14,34 +14,41 @@ export class CityGridEngine {
     this.cachedKey = "";
 
     this.residentialSprites = [
-      // Sprites procedurais top-down
-      "sub_building-type-a.png", "sub_building-type-b.png", "sub_building-type-c.png", "sub_building-type-d.png",
-      "sub_building-type-e.png", "sub_building-type-f.png", "sub_building-type-g.png", "sub_building-type-h.png",
-      "sub_building-type-i.png", "sub_building-type-j.png", "sub_building-type-k.png", "sub_building-type-l.png",
-      "sub_building-type-m.png", "sub_building-type-n.png", "sub_building-type-o.png", "sub_building-type-p.png",
-      "sub_building-type-q.png", "sub_building-type-r.png", "sub_building-type-s.png", "sub_building-type-t.png",
-      "sub_building-type-u.png",
       // Sprites Painterly Satélite HD (Lote 1)
-      "res_house_simple.png", "res_house_backyard.png", "res_house_twostory.png",
-      "res_duplex.png", "res_vila.png"
+      "res_house_simple.png",
+      "res_house_backyard.png",
+      "res_house_twostory.png",
+      "res_duplex.png",
+      "res_vila.png"
     ];
 
     this.commercialSprites = [
-      "comm_building-a.png", "comm_building-b.png", "comm_building-c.png", "comm_building-d.png",
-      "comm_building-e.png", "comm_building-f.png", "comm_building-g.png", "comm_building-h.png",
-      "comm_building-i.png", "comm_building-j.png", "comm_building-k.png", "comm_building-l.png",
-      "comm_building-m.png", "comm_building-n.png",
-      "comm_low-detail-building-a.png", "comm_low-detail-building-b.png", "comm_low-detail-building-c.png",
-      "comm_low-detail-building-d.png", "comm_low-detail-building-e.png", "comm_low-detail-building-f.png",
-      "comm_low-detail-building-g.png", "comm_low-detail-building-h.png", "comm_low-detail-building-i.png",
-      "comm_low-detail-building-j.png", "comm_low-detail-building-k.png", "comm_low-detail-building-l.png",
-      "comm_low-detail-building-m.png", "comm_low-detail-building-n.png"
+      // Sprites Painterly Satélite HD (Lote 3)
+      "comm_strip_mall.png",
+      "comm_office_rooftop_garden.png",
+      "comm_supercenter_dock.png"
     ];
 
     this.skyscraperSprites = [
-      "comm_building-skyscraper-a.png", "comm_building-skyscraper-b.png",
-      "comm_building-skyscraper-c.png", "comm_building-skyscraper-d.png",
-      "comm_building-skyscraper-e.png"
+      // Sprites Painterly Satélite HD (Lote 3)
+      "comm_skyscraper_helipad.png"
+    ];
+
+    this.parkSprites = [
+      // Sprites Painterly Satélite HD (Lote 2)
+      "park_plaza_fountain.png",
+      "park_dense_trees.png",
+      "park_garden.png",
+      "park_playground.png",
+      "park_neighborhood.png"
+    ];
+
+    this.industrialSprites = [
+      // Sprites Painterly Satélite HD (Lote 4)
+      "ind_electrical_substation.png",
+      "ind_fuel_storage_tanks.png",
+      "ind_water_treatment.png",
+      "ind_container_yard.png"
     ];
   }
 
@@ -108,10 +115,24 @@ export class CityGridEngine {
           const nameLower = (target.stageData.sector_name || "").toLowerCase();
           let spriteKey = "escola_municipal";
 
-          if (nameLower.includes("hosp") || nameLower.includes("médic") || nameLower.includes("saude") || nameLower.includes("saúde") || nameLower.includes("urgên")) {
+          if (nameLower.includes("bombeir") || nameLower.includes("incênd") || nameLower.includes("incend") || nameLower.includes("fogo") || nameLower.includes("resgate")) {
+            spriteKey = "pub_fire_station";
+          } else if (nameLower.includes("triag") || nameLower.includes("tenda") || nameLower.includes("campanha") || nameLower.includes("posto de saúde")) {
+            spriteKey = "pub_field_hospital_triage";
+          } else if (nameLower.includes("hosp") || nameLower.includes("médic") || nameLower.includes("saude") || nameLower.includes("saúde") || nameLower.includes("urgên")) {
             spriteKey = "hospital_regional";
-          } else if (nameLower.includes("subest") || nameLower.includes("energ") || nameLower.includes("elétr") || nameLower.includes("eletro")) {
-            spriteKey = "subestacao_eletrica";
+          } else if (nameLower.includes("telecom") || nameLower.includes("antena") || nameLower.includes("comunic") || nameLower.includes("satél") || nameLower.includes("satel") || nameLower.includes("radar")) {
+            spriteKey = "pub_telecom_center";
+          } else if (nameLower.includes("subest") || nameLower.includes("energ") || nameLower.includes("elétr") || nameLower.includes("eletro") || nameLower.includes("alta tensão")) {
+            spriteKey = "ind_electrical_substation";
+          } else if (nameLower.includes("água") || nameLower.includes("agua") || nameLower.includes("eta") || nameLower.includes("filtr") || nameLower.includes("saneam")) {
+            spriteKey = "ind_water_treatment";
+          } else if (nameLower.includes("tanque") || nameLower.includes("combust") || nameLower.includes("petro") || nameLower.includes("oleo") || nameLower.includes("óleo")) {
+            spriteKey = "ind_fuel_storage_tanks";
+          } else if (nameLower.includes("contain") || nameLower.includes("contein") || nameLower.includes("porto") || nameLower.includes("doca") || nameLower.includes("logíst") || nameLower.includes("galpão")) {
+            spriteKey = "ind_container_yard";
+          } else if (nameLower.includes("heliponto") || nameLower.includes("aurora") || nameLower.includes("torre") || nameLower.includes("corporat") || nameLower.includes("arranha")) {
+            spriteKey = "comm_skyscraper_helipad";
           } else if (nameLower.includes("quim") || nameLower.includes("quím") || nameLower.includes("fabri") || nameLower.includes("fábri") || nameLower.includes("refin") || nameLower.includes("indús") || nameLower.includes("indus") || nameLower.includes("gás")) {
             spriteKey = "fabrica_quimica";
           } else if (nameLower.includes("pref") || nameLower.includes("gov") || nameLower.includes("civic") || nameLower.includes("cívic") || nameLower.includes("forum") || nameLower.includes("fórum") || nameLower.includes("centro")) {
@@ -119,7 +140,18 @@ export class CityGridEngine {
           } else if (nameLower.includes("escol") || nameLower.includes("univer") || nameLower.includes("coleg") || nameLower.includes("colég") || nameLower.includes("aluno")) {
             spriteKey = "escola_municipal";
           } else {
-            const fallbackList = ["escola_municipal", "hospital_regional", "subestacao_eletrica", "fabrica_quimica", "prefeitura_civica"];
+            const fallbackList = [
+              "pub_fire_station",
+              "pub_field_hospital_triage",
+              "comm_skyscraper_helipad",
+              "escola_municipal",
+              "hospital_regional",
+              "ind_electrical_substation",
+              "fabrica_quimica",
+              "prefeitura_civica",
+              "ind_water_treatment",
+              "pub_telecom_center"
+            ];
             spriteKey = fallbackList[target.stageIdx % fallbackList.length];
           }
 
@@ -159,7 +191,7 @@ export class CityGridEngine {
                 ground: "pavement"
               }
             });
-          } else if (roll < 0.38) {
+          } else if (roll < 0.35) {
             // Bairro Residencial: Casas Suburbanas
             const resIdx = Math.floor(rand() * this.residentialSprites.length);
             grid.push({
@@ -176,7 +208,7 @@ export class CityGridEngine {
                 ground: "grass"
               }
             });
-          } else if (roll < 0.72) {
+          } else if (roll < 0.62) {
             // Setor Comercial / Serviços
             const commIdx = Math.floor(rand() * this.commercialSprites.length);
             grid.push({
@@ -193,8 +225,9 @@ export class CityGridEngine {
                 ground: "pavement"
               }
             });
-          } else if (roll < 0.88) {
-            // Praça Pública Arborizada
+          } else if (roll < 0.80) {
+            // Praça Pública / Parque Painterly
+            const parkIdx = Math.floor(rand() * this.parkSprites.length);
             grid.push({
               col: c,
               row: r,
@@ -204,9 +237,26 @@ export class CityGridEngine {
               structure: {
                 category: "parks_foliage",
                 type: "urban_park",
-                name: "Praça Pública",
-                spriteKey: "sub_tree-large.png",
+                name: "Praça & Parque Público",
+                spriteKey: this.parkSprites[parkIdx],
                 ground: "park"
+              }
+            });
+          } else if (roll < 0.92) {
+            // Zona Industrial / Infraestrutura
+            const indIdx = Math.floor(rand() * this.industrialSprites.length);
+            grid.push({
+              col: c,
+              row: r,
+              isTarget: false,
+              stageIdx: -1,
+              stageData: null,
+              structure: {
+                category: "industrial",
+                type: "industrial_facility",
+                name: "Instalação Industrial & Apoio",
+                spriteKey: this.industrialSprites[indIdx],
+                ground: "industrial"
               }
             });
           } else {

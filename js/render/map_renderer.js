@@ -166,12 +166,21 @@ export class MapRenderer {
           ctx.lineWidth = 1;
           ctx.strokeRect(bx, by, bw, bh);
 
-          const treeImg = this.bank.get("sub_tree-large.png") || this.bank.get("tree_large.png");
-          if (treeImg && treeImg.naturalWidth > 0) {
-            const tSize = Math.min(bw, bh) * 0.42;
-            ctx.drawImage(treeImg, bx + bw * 0.12, by + bh * 0.22, tSize, tSize);
-            ctx.drawImage(treeImg, bx + bw * 0.52, by + bh * 0.32, tSize, tSize);
+          if (!struct.spriteKey) {
+            const treeImg = this.bank.get("sub_tree-large.png") || this.bank.get("tree_large.png");
+            if (treeImg && treeImg.naturalWidth > 0) {
+              const tSize = Math.min(bw, bh) * 0.42;
+              ctx.drawImage(treeImg, bx + bw * 0.12, by + bh * 0.22, tSize, tSize);
+              ctx.drawImage(treeImg, bx + bw * 0.52, by + bh * 0.32, tSize, tSize);
+            }
           }
+        } else if (struct.ground === "industrial") {
+          // Zona Industrial & Infraestrutura Crítica
+          ctx.fillStyle = "rgba(40, 36, 32, 0.65)";
+          ctx.fillRect(bx, by, bw, bh);
+          ctx.strokeStyle = "rgba(229, 160, 13, 0.25)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(bx, by, bw, bh);
         } else if (struct.ground === "parking") {
           // Estacionamento com Demarcação de Vagas
           ctx.fillStyle = "rgba(28, 34, 40, 0.7)";

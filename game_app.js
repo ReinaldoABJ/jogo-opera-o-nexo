@@ -931,34 +931,41 @@ class SpriteBank {
     this.totalCount = 0;
 
     const residentialFiles = [
-      // Sprites Procedurais (tiny, top-down simples)
-      'sub_building-type-a.png', 'sub_building-type-b.png', 'sub_building-type-c.png', 'sub_building-type-d.png',
-      'sub_building-type-e.png', 'sub_building-type-f.png', 'sub_building-type-g.png', 'sub_building-type-h.png',
-      'sub_building-type-i.png', 'sub_building-type-j.png', 'sub_building-type-k.png', 'sub_building-type-l.png',
-      'sub_building-type-m.png', 'sub_building-type-n.png', 'sub_building-type-o.png', 'sub_building-type-p.png',
-      'sub_building-type-q.png', 'sub_building-type-r.png', 'sub_building-type-s.png', 'sub_building-type-t.png',
-      'sub_building-type-u.png',
       // Sprites Painterly Satélite HD (Lote 1)
-      'res_house_simple.png', 'res_house_backyard.png', 'res_house_twostory.png',
-      'res_duplex.png', 'res_vila.png'
+      'res_house_simple.png',
+      'res_house_backyard.png',
+      'res_house_twostory.png',
+      'res_duplex.png',
+      'res_vila.png'
     ];
 
     const commercialFiles = [
-      'comm_building-a.png', 'comm_building-b.png', 'comm_building-c.png', 'comm_building-d.png',
-      'comm_building-e.png', 'comm_building-f.png', 'comm_building-g.png', 'comm_building-h.png',
-      'comm_building-i.png', 'comm_building-j.png', 'comm_building-k.png', 'comm_building-l.png',
-      'comm_building-m.png', 'comm_building-n.png',
-      'comm_low-detail-building-a.png', 'comm_low-detail-building-b.png', 'comm_low-detail-building-c.png',
-      'comm_low-detail-building-d.png', 'comm_low-detail-building-e.png', 'comm_low-detail-building-f.png',
-      'comm_low-detail-building-g.png', 'comm_low-detail-building-h.png', 'comm_low-detail-building-i.png',
-      'comm_low-detail-building-j.png', 'comm_low-detail-building-k.png', 'comm_low-detail-building-l.png',
-      'comm_low-detail-building-m.png', 'comm_low-detail-building-n.png'
+      // Sprites Painterly Satélite HD (Lote 3)
+      'comm_strip_mall.png',
+      'comm_office_rooftop_garden.png',
+      'comm_supercenter_dock.png'
     ];
 
     const skyscraperFiles = [
-      'comm_building-skyscraper-a.png', 'comm_building-skyscraper-b.png',
-      'comm_building-skyscraper-c.png', 'comm_building-skyscraper-d.png',
-      'comm_building-skyscraper-e.png'
+      // Sprites Painterly Satélite HD (Lote 3)
+      'comm_skyscraper_helipad.png'
+    ];
+
+    const parkFiles = [
+      // Sprites Painterly Satélite HD (Lote 2)
+      'park_plaza_fountain.png',
+      'park_dense_trees.png',
+      'park_garden.png',
+      'park_playground.png',
+      'park_neighborhood.png'
+    ];
+
+    const industrialFiles = [
+      // Sprites Painterly Satélite HD (Lote 4)
+      'ind_electrical_substation.png',
+      'ind_fuel_storage_tanks.png',
+      'ind_water_treatment.png',
+      'ind_container_yard.png'
     ];
 
     this.catalog = {
@@ -967,15 +974,25 @@ class SpriteBank {
         { id: 'escola_municipal', src: './assets/sprites/buildings/escola_municipal.jpg' },
         { id: 'subestacao_eletrica', src: './assets/sprites/buildings/subestacao_eletrica.jpg' },
         { id: 'fabrica_quimica', src: './assets/sprites/buildings/fabrica_quimica.jpg' },
-        { id: 'prefeitura_civica', src: './assets/sprites/buildings/prefeitura_civica.jpg' }
+        { id: 'prefeitura_civica', src: './assets/sprites/buildings/prefeitura_civica.jpg' },
+        // Novos Heróis e Equipamentos Públicos (Lote 5)
+        { id: 'pub_fire_station', src: './assets/sprites/buildings/pub_fire_station.jpeg' },
+        { id: 'pub_field_hospital_triage', src: './assets/sprites/buildings/pub_field_hospital_triage.jpeg' },
+        { id: 'pub_telecom_center', src: './assets/sprites/buildings/pub_telecom_center.jpeg' },
+        // Alvos Industriais e Comerciais Estratégicos
+        { id: 'ind_electrical_substation', src: './assets/sprites/buildings/ind_electrical_substation.png' },
+        { id: 'ind_fuel_storage_tanks', src: './assets/sprites/buildings/ind_fuel_storage_tanks.png' },
+        { id: 'ind_water_treatment', src: './assets/sprites/buildings/ind_water_treatment.png' },
+        { id: 'ind_container_yard', src: './assets/sprites/buildings/ind_container_yard.png' },
+        { id: 'comm_skyscraper_helipad', src: './assets/sprites/buildings/comm_skyscraper_helipad.png' }
       ],
       residential: residentialFiles.map(fn => ({ id: fn, src: './assets/sprites/buildings/' + fn })),
       commercial: commercialFiles.map(fn => ({ id: fn, src: './assets/sprites/buildings/' + fn })),
       skyscrapers: skyscraperFiles.map(fn => ({ id: fn, src: './assets/sprites/buildings/' + fn })),
+      parks: parkFiles.map(fn => ({ id: fn, src: './assets/sprites/buildings/' + fn })),
+      industrial: industrialFiles.map(fn => ({ id: fn, src: './assets/sprites/buildings/' + fn })),
       parks_foliage: [
-        { id: 'sub_tree-large.png', src: './assets/sprites/buildings/sub_tree-large.png' },
-        { id: 'sub_tree-small.png', src: './assets/sprites/buildings/sub_tree-small.png' },
-        { id: 'sub_planter.png', src: './assets/sprites/buildings/sub_planter.png' },
+        ...parkFiles.map(fn => ({ id: fn, src: './assets/sprites/buildings/' + fn })),
         { id: 'tree_large.png', src: './assets/sprites/urban/tree_large.png' },
         { id: 'tree_small.png', src: './assets/sprites/urban/tree_small.png' }
       ],
@@ -995,6 +1012,7 @@ class SpriteBank {
       ...this.catalog.residential,
       ...this.catalog.commercial,
       ...this.catalog.skyscrapers,
+      ...this.catalog.industrial,
       ...this.catalog.parks_foliage,
       ...this.catalog.terrain,
       { id: 'drone', src: './assets/sprites/drone.png' },
@@ -1049,34 +1067,41 @@ class CityGridEngine {
     this.cachedKey = "";
 
     this.residentialSprites = [
-      // Sprites procedurais top-down
-      "sub_building-type-a.png", "sub_building-type-b.png", "sub_building-type-c.png", "sub_building-type-d.png",
-      "sub_building-type-e.png", "sub_building-type-f.png", "sub_building-type-g.png", "sub_building-type-h.png",
-      "sub_building-type-i.png", "sub_building-type-j.png", "sub_building-type-k.png", "sub_building-type-l.png",
-      "sub_building-type-m.png", "sub_building-type-n.png", "sub_building-type-o.png", "sub_building-type-p.png",
-      "sub_building-type-q.png", "sub_building-type-r.png", "sub_building-type-s.png", "sub_building-type-t.png",
-      "sub_building-type-u.png",
       // Sprites Painterly Satélite HD (Lote 1)
-      "res_house_simple.png", "res_house_backyard.png", "res_house_twostory.png",
-      "res_duplex.png", "res_vila.png"
+      "res_house_simple.png",
+      "res_house_backyard.png",
+      "res_house_twostory.png",
+      "res_duplex.png",
+      "res_vila.png"
     ];
 
     this.commercialSprites = [
-      "comm_building-a.png", "comm_building-b.png", "comm_building-c.png", "comm_building-d.png",
-      "comm_building-e.png", "comm_building-f.png", "comm_building-g.png", "comm_building-h.png",
-      "comm_building-i.png", "comm_building-j.png", "comm_building-k.png", "comm_building-l.png",
-      "comm_building-m.png", "comm_building-n.png",
-      "comm_low-detail-building-a.png", "comm_low-detail-building-b.png", "comm_low-detail-building-c.png",
-      "comm_low-detail-building-d.png", "comm_low-detail-building-e.png", "comm_low-detail-building-f.png",
-      "comm_low-detail-building-g.png", "comm_low-detail-building-h.png", "comm_low-detail-building-i.png",
-      "comm_low-detail-building-j.png", "comm_low-detail-building-k.png", "comm_low-detail-building-l.png",
-      "comm_low-detail-building-m.png", "comm_low-detail-building-n.png"
+      // Sprites Painterly Satélite HD (Lote 3)
+      "comm_strip_mall.png",
+      "comm_office_rooftop_garden.png",
+      "comm_supercenter_dock.png"
     ];
 
     this.skyscraperSprites = [
-      "comm_building-skyscraper-a.png", "comm_building-skyscraper-b.png",
-      "comm_building-skyscraper-c.png", "comm_building-skyscraper-d.png",
-      "comm_building-skyscraper-e.png"
+      // Sprites Painterly Satélite HD (Lote 3)
+      "comm_skyscraper_helipad.png"
+    ];
+
+    this.parkSprites = [
+      // Sprites Painterly Satélite HD (Lote 2)
+      "park_plaza_fountain.png",
+      "park_dense_trees.png",
+      "park_garden.png",
+      "park_playground.png",
+      "park_neighborhood.png"
+    ];
+
+    this.industrialSprites = [
+      // Sprites Painterly Satélite HD (Lote 4)
+      "ind_electrical_substation.png",
+      "ind_fuel_storage_tanks.png",
+      "ind_water_treatment.png",
+      "ind_container_yard.png"
     ];
   }
 
@@ -1143,10 +1168,24 @@ class CityGridEngine {
           const nameLower = (target.stageData.sector_name || "").toLowerCase();
           let spriteKey = "escola_municipal";
 
-          if (nameLower.includes("hosp") || nameLower.includes("médic") || nameLower.includes("saude") || nameLower.includes("saúde") || nameLower.includes("urgên")) {
+          if (nameLower.includes("bombeir") || nameLower.includes("incênd") || nameLower.includes("incend") || nameLower.includes("fogo") || nameLower.includes("resgate")) {
+            spriteKey = "pub_fire_station";
+          } else if (nameLower.includes("triag") || nameLower.includes("tenda") || nameLower.includes("campanha") || nameLower.includes("posto de saúde")) {
+            spriteKey = "pub_field_hospital_triage";
+          } else if (nameLower.includes("hosp") || nameLower.includes("médic") || nameLower.includes("saude") || nameLower.includes("saúde") || nameLower.includes("urgên")) {
             spriteKey = "hospital_regional";
-          } else if (nameLower.includes("subest") || nameLower.includes("energ") || nameLower.includes("elétr") || nameLower.includes("eletro")) {
-            spriteKey = "subestacao_eletrica";
+          } else if (nameLower.includes("telecom") || nameLower.includes("antena") || nameLower.includes("comunic") || nameLower.includes("satél") || nameLower.includes("satel") || nameLower.includes("radar")) {
+            spriteKey = "pub_telecom_center";
+          } else if (nameLower.includes("subest") || nameLower.includes("energ") || nameLower.includes("elétr") || nameLower.includes("eletro") || nameLower.includes("alta tensão")) {
+            spriteKey = "ind_electrical_substation";
+          } else if (nameLower.includes("água") || nameLower.includes("agua") || nameLower.includes("eta") || nameLower.includes("filtr") || nameLower.includes("saneam")) {
+            spriteKey = "ind_water_treatment";
+          } else if (nameLower.includes("tanque") || nameLower.includes("combust") || nameLower.includes("petro") || nameLower.includes("oleo") || nameLower.includes("óleo")) {
+            spriteKey = "ind_fuel_storage_tanks";
+          } else if (nameLower.includes("contain") || nameLower.includes("contein") || nameLower.includes("porto") || nameLower.includes("doca") || nameLower.includes("logíst") || nameLower.includes("galpão")) {
+            spriteKey = "ind_container_yard";
+          } else if (nameLower.includes("heliponto") || nameLower.includes("aurora") || nameLower.includes("torre") || nameLower.includes("corporat") || nameLower.includes("arranha")) {
+            spriteKey = "comm_skyscraper_helipad";
           } else if (nameLower.includes("quim") || nameLower.includes("quím") || nameLower.includes("fabri") || nameLower.includes("fábri") || nameLower.includes("refin") || nameLower.includes("indús") || nameLower.includes("indus") || nameLower.includes("gás")) {
             spriteKey = "fabrica_quimica";
           } else if (nameLower.includes("pref") || nameLower.includes("gov") || nameLower.includes("civic") || nameLower.includes("cívic") || nameLower.includes("forum") || nameLower.includes("fórum") || nameLower.includes("centro")) {
@@ -1154,7 +1193,18 @@ class CityGridEngine {
           } else if (nameLower.includes("escol") || nameLower.includes("univer") || nameLower.includes("coleg") || nameLower.includes("colég") || nameLower.includes("aluno")) {
             spriteKey = "escola_municipal";
           } else {
-            const fallbackList = ["escola_municipal", "hospital_regional", "subestacao_eletrica", "fabrica_quimica", "prefeitura_civica"];
+            const fallbackList = [
+              "pub_fire_station",
+              "pub_field_hospital_triage",
+              "comm_skyscraper_helipad",
+              "escola_municipal",
+              "hospital_regional",
+              "ind_electrical_substation",
+              "fabrica_quimica",
+              "prefeitura_civica",
+              "ind_water_treatment",
+              "pub_telecom_center"
+            ];
             spriteKey = fallbackList[target.stageIdx % fallbackList.length];
           }
 
@@ -1194,7 +1244,7 @@ class CityGridEngine {
                 ground: "pavement"
               }
             });
-          } else if (roll < 0.38) {
+          } else if (roll < 0.35) {
             // Bairro Residencial: Casas Suburbanas
             const resIdx = Math.floor(rand() * this.residentialSprites.length);
             grid.push({
@@ -1211,7 +1261,7 @@ class CityGridEngine {
                 ground: "grass"
               }
             });
-          } else if (roll < 0.72) {
+          } else if (roll < 0.62) {
             // Setor Comercial / Serviços
             const commIdx = Math.floor(rand() * this.commercialSprites.length);
             grid.push({
@@ -1228,8 +1278,9 @@ class CityGridEngine {
                 ground: "pavement"
               }
             });
-          } else if (roll < 0.88) {
-            // Praça Pública Arborizada
+          } else if (roll < 0.80) {
+            // Praça Pública / Parque Painterly
+            const parkIdx = Math.floor(rand() * this.parkSprites.length);
             grid.push({
               col: c,
               row: r,
@@ -1239,9 +1290,26 @@ class CityGridEngine {
               structure: {
                 category: "parks_foliage",
                 type: "urban_park",
-                name: "Praça Pública",
-                spriteKey: "sub_tree-large.png",
+                name: "Praça & Parque Público",
+                spriteKey: this.parkSprites[parkIdx],
                 ground: "park"
+              }
+            });
+          } else if (roll < 0.92) {
+            // Zona Industrial / Infraestrutura
+            const indIdx = Math.floor(rand() * this.industrialSprites.length);
+            grid.push({
+              col: c,
+              row: r,
+              isTarget: false,
+              stageIdx: -1,
+              stageData: null,
+              structure: {
+                category: "industrial",
+                type: "industrial_facility",
+                name: "Instalação Industrial & Apoio",
+                spriteKey: this.industrialSprites[indIdx],
+                ground: "industrial"
               }
             });
           } else {
@@ -1437,12 +1505,21 @@ class MapRenderer {
           ctx.lineWidth = 1;
           ctx.strokeRect(bx, by, bw, bh);
 
-          const treeImg = this.bank.get("sub_tree-large.png") || this.bank.get("tree_large.png");
-          if (treeImg && treeImg.naturalWidth > 0) {
-            const tSize = Math.min(bw, bh) * 0.42;
-            ctx.drawImage(treeImg, bx + bw * 0.12, by + bh * 0.22, tSize, tSize);
-            ctx.drawImage(treeImg, bx + bw * 0.52, by + bh * 0.32, tSize, tSize);
+          if (!struct.spriteKey) {
+            const treeImg = this.bank.get("sub_tree-large.png") || this.bank.get("tree_large.png");
+            if (treeImg && treeImg.naturalWidth > 0) {
+              const tSize = Math.min(bw, bh) * 0.42;
+              ctx.drawImage(treeImg, bx + bw * 0.12, by + bh * 0.22, tSize, tSize);
+              ctx.drawImage(treeImg, bx + bw * 0.52, by + bh * 0.32, tSize, tSize);
+            }
           }
+        } else if (struct.ground === "industrial") {
+          // Zona Industrial & Infraestrutura Crítica
+          ctx.fillStyle = "rgba(40, 36, 32, 0.65)";
+          ctx.fillRect(bx, by, bw, bh);
+          ctx.strokeStyle = "rgba(229, 160, 13, 0.25)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(bx, by, bw, bh);
         } else if (struct.ground === "parking") {
           // Estacionamento com Demarcação de Vagas
           ctx.fillStyle = "rgba(28, 34, 40, 0.7)";
