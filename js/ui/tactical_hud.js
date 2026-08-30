@@ -49,7 +49,7 @@ export class TacticalHUD {
       for (const [k, v] of Object.entries(sec.sensors || {})) {
         sensorsHtml += `
           <div class="sensor-box ${v ? 'val-true' : 'val-false'}">
-            <span>${k}</span><strong>${v ? '🟢 T' : '⚪ F'}</strong>
+            <span>${k}</span><strong>${v ? '🟢 TRUE' : '⚪ FALSE'}</strong>
           </div>`;
       }
 
@@ -96,9 +96,9 @@ export class TacticalHUD {
       formulaHtml += '</div>';
 
       const stageBadge = totalStages > 1 
-        ? `<div style="font-size:0.72rem; background:rgba(229,160,13,0.15); color:var(--military-amber); border:1px solid rgba(229,160,13,0.35); padding:3px 6px; border-radius:3px; font-weight:bold; display:flex; justify-content:space-between;">
+        ? `<div class="stage-badge-box">
              <span>📍 ${missionTitle || 'SURTIDA TÁTICA'}</span>
-             <span>ETAPA ${stageIdx + 1}/${totalStages}</span>
+             <span>ETAPA ${stageIdx + 1} / ${totalStages}</span>
            </div>`
         : '';
 
