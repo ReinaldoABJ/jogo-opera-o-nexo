@@ -30,6 +30,26 @@ export class MapRenderer {
         img.src = `./assets/sprites/buildings/${k}.jpg`;
       });
 
+      // Sprites de Edificações Urbanas, Residenciais e Comerciais
+      const proceduralSpriteFiles = [
+        'comm_building-a.png', 'comm_building-b.png', 'comm_building-c.png', 'comm_building-d.png',
+        'comm_building-e.png', 'comm_building-f.png', 'comm_building-g.png', 'comm_building-h.png',
+        'comm_building-i.png', 'comm_building-j.png', 'comm_building-k.png', 'comm_building-l.png',
+        'comm_building-m.png', 'comm_building-n.png', 'comm_building-skyscraper-a.png', 'comm_building-skyscraper-b.png',
+        'comm_building-skyscraper-c.png', 'comm_building-skyscraper-d.png', 'comm_building-skyscraper-e.png',
+        'sub_building-type-a.png', 'sub_building-type-b.png', 'sub_building-type-c.png', 'sub_building-type-d.png',
+        'sub_building-type-e.png', 'sub_building-type-f.png', 'sub_building-type-g.png', 'sub_building-type-h.png',
+        'sub_building-type-i.png', 'sub_building-type-j.png', 'sub_building-type-k.png', 'sub_building-type-l.png',
+        'sub_building-type-m.png', 'sub_building-type-n.png', 'sub_building-type-o.png', 'sub_building-type-p.png',
+        'sub_building-type-q.png', 'sub_building-type-r.png', 'sub_building-type-s.png', 'sub_building-type-t.png',
+        'sub_building-type-u.png', 'sub_tree-large.png', 'sub_tree-small.png', 'sub_planter.png'
+      ];
+      proceduralSpriteFiles.forEach(file => {
+        const img = new Image();
+        img.onload = () => { this.buildingSprites[file] = img; };
+        img.src = `./assets/sprites/buildings/${file}`;
+      });
+
       this.droneLoaded = false;
       this.droneImg = new Image();
       this.droneImg.onload = () => { this.droneLoaded = true; };
@@ -82,7 +102,7 @@ export class MapRenderer {
         ctx.drawImage(this.mapImg, offsetX, offsetY, renderW, renderH);
 
         // Filtro tático translúcido
-        ctx.fillStyle = 'rgba(17, 20, 23, 0.22)';
+        ctx.fillStyle = 'rgba(17, 20, 23, 0.28)';
         ctx.fillRect(0, 0, w, h);
       } else {
         // Fallback de Terreno se imagem estiver carregando
@@ -90,7 +110,7 @@ export class MapRenderer {
         ctx.fillRect(0, 0, w, h);
       }
 
-      // 2. Camada 1: Alvos de Emergência da Missão Ancorados na Grade
+      // 2. Camada 1: Grade Urbana Completa (48 Quarteirões Procedurais + Alvos da Missão)
       const stages = (currentMission && currentMission.stages) ? currentMission.stages : (sector ? [sector] : []);
       const missionId = currentMission ? (currentMission.id || currentMission.title) : 'nexo_default';
       const gridLayout = this.gridEngine.generateLayout(missionId, 42, stages);
@@ -98,29 +118,50 @@ export class MapRenderer {
       const cellW = w / this.gridEngine.cols;
       const cellH = h / this.gridEngine.rows;
 
-      // Renderizar Alvos de Emergência da Missão com Sprites HD
-      gridLayout.forEach(cell => {
-        if (cell.isTarget) {
-          const marginX = cellW * 0.08;
-          const marginY = cellH * 0.08;
-          const bx = cell.col * cellW + marginX;
-          const by = cell.row * cellH + marginY;
-          const bw = cellW - marginX * 2;
-          const bh = cellH - marginY * 2;
+      // 2.1 Malha Viária Urbana (Ruas e Avenidas entre quarteirões)
+      ctx.save();
+      ctx.fillStyle = 'rgba(22, 28, 34, 0.6)';
+      for (let r = 0; r <= this.gridEngine.rows; r++) {
+        const y = r * cellH;
+        ctx.fillRect(0, y - 3, w, 6);
+      }
+      for (let c = 0; c <= this.gridEngine.cols; c++) {
+        const x = c * cellW;
+        ctx.fillRect(x - 3, 0, 6, h);
+      }
+      ctx.strokeStyle = 'rgba(229, 160, 13, 0.18)';
+      ctx.lineWidth = 0.8;
+      ctx.setLineDash([4, 6]);
+      for (let r = 0; r < this.gridEngine.rows; r++) {
+        const y = (r + 0.5) * cellH;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+      for (let c = 0; c < this.gridEngine.cols; c++) {
+        const x = (c + 0.5) * cellW;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.restore();
 
-          // Sombra Projetada
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      // 2.2 Renderização de Cada Lote Urbano e Edificação
+      gridLayout.forEach(cell => {
+        const marginX = cellW * 0.08;
+        const marginY = cellH * 0.08;
+        const bx = cell.col * cellW + marginX;
+        const by = cell.row * cellH + marginY;
+        const bw = cellW - marginX * 2;
+        const bh = cellH - marginY * 2;
+
+        if (cell.isTarget) {
+          // --- ALVO DE EMERGÊNCIA (HERO) ---
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
           ctx.fillRect(bx + 4, by + 4, bw, bh);
 
-          // Sprite HD do Alvo
           const sKey = cell.structure.spriteKey;
           if (sKey && this.buildingSprites[sKey] && this.buildingSprites[sKey].naturalWidth > 0) {
-            const sImg = this.buildingSprites[sKey];
-            ctx.save();
-            ctx.drawImage(sImg, bx, by, bw, bh);
-            ctx.restore();
+            ctx.drawImage(this.buildingSprites[sKey], bx, by, bw, bh);
           } else {
-            ctx.fillStyle = 'rgba(35, 45, 54, 0.9)';
+            ctx.fillStyle = 'rgba(40, 50, 60, 0.95)';
             ctx.fillRect(bx, by, bw, bh);
           }
 
@@ -140,6 +181,62 @@ export class MapRenderer {
           ctx.font = 'bold 10px monospace';
           const stageChar = String.fromCharCode(65 + Math.max(0, cell.stageIdx));
           ctx.fillText(`[${stageChar}]`, bx + 6, by + 14);
+
+        } else {
+          // --- QUARTEIRÃO URBANO COMUM (Casas, Torres Comerciais, Parques e Estacionamentos) ---
+          const struct = cell.structure || {};
+
+          // Base do Terreno
+          if (struct.ground === 'grass') {
+            ctx.fillStyle = 'rgba(38, 54, 40, 0.55)';
+            ctx.fillRect(bx, by, bw, bh);
+          } else if (struct.ground === 'park') {
+            ctx.fillStyle = 'rgba(32, 58, 35, 0.65)';
+            ctx.fillRect(bx, by, bw, bh);
+            ctx.strokeStyle = 'rgba(78, 201, 92, 0.35)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(bx, by, bw, bh);
+
+            const treeImg = this.buildingSprites['sub_tree-large.png'];
+            if (treeImg && treeImg.naturalWidth > 0) {
+              const tSize = Math.min(bw, bh) * 0.42;
+              ctx.drawImage(treeImg, bx + bw * 0.12, by + bh * 0.22, tSize, tSize);
+              ctx.drawImage(treeImg, bx + bw * 0.52, by + bh * 0.32, tSize, tSize);
+            }
+          } else if (struct.ground === 'parking') {
+            ctx.fillStyle = 'rgba(28, 34, 40, 0.65)';
+            ctx.fillRect(bx, by, bw, bh);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+            ctx.lineWidth = 0.8;
+            const slotStep = bw / 4;
+            for (let v = slotStep; v < bw; v += slotStep) {
+              ctx.beginPath(); ctx.moveTo(bx + v, by + 2); ctx.lineTo(bx + v, by + bh - 2); ctx.stroke();
+            }
+          } else {
+            ctx.fillStyle = 'rgba(32, 38, 44, 0.5)';
+            ctx.fillRect(bx, by, bw, bh);
+          }
+
+          // Sprite da Edificação Top-Down
+          if (struct.spriteKey && this.buildingSprites[struct.spriteKey] && this.buildingSprites[struct.spriteKey].naturalWidth > 0) {
+            const bImg = this.buildingSprites[struct.spriteKey];
+            const imgAspect = bImg.naturalWidth / bImg.naturalHeight;
+            let drawW = bw * 0.84;
+            let drawH = bh * 0.84;
+            if (imgAspect > 1) {
+              drawH = drawW / imgAspect;
+            } else {
+              drawW = drawH * imgAspect;
+            }
+            const drawX = bx + (bw - drawW) / 2;
+            const drawY = by + (bh - drawH) / 2;
+
+            // Sombra projetada
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            ctx.fillRect(drawX + 3, drawY + 3, drawW, drawH);
+
+            ctx.drawImage(bImg, drawX, drawY, drawW, drawH);
+          }
         }
       });
 
