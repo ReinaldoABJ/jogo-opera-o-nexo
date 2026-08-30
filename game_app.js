@@ -2,16 +2,17 @@
  * ============================================================================
  * Operação NEXO: Comando & Resgate — Standalone Bundle
  * ============================================================================
- * UFMT GameHub — Co-criado por Reinaldo Júnior & ⚡ L.O.G.O.S.
- * Standalone Zero-Build Bundle para execução imediata em file:/// e Web
+ * UFMT GameHub — Co-criado por Reinaldo Júnior & L.O.G.O.S.
+ * Zero-Build Bundle — file:/// e Web compatível
  * ============================================================================
  */
 
 (() => {
   'use strict';
 
-  // 1. DATASETS
-  window.LEVELS_DATA = {
+  // DATASETS
+
+window.LEVELS_DATA = {
   "temporadas": [
     {
       "id": "regiao_01_neo_aethel",
@@ -776,7 +777,8 @@
   ]
 };
 window.LEVELS_DATA;
-  window.I18N_DATA = {
+
+window.I18N_DATA = {
   "pt-br": {
     "game_title": "Operação NEXO: Comando & Resgate",
     "game_subtitle": "Centro de Comando Tático — Defesa Civil & Resgate",
@@ -806,8 +808,9 @@ window.LEVELS_DATA;
 };
 window.I18N_DATA;
 
-  // 2. CORE & SYSTEMS
-  /**
+  // CORE & SYSTEMS
+
+/**
  * ============================================================================
  * EventBus — Barramento de Eventos Desacoplado (Operação NEXO)
  * ============================================================================
@@ -838,7 +841,8 @@ class EventBus {
     });
   }
 }
-  /**
+
+/**
  * ============================================================================
  * AudioSystem — Síntese Sonora Militar & Beeps Táticos (Web Audio API)
  * ============================================================================
@@ -910,8 +914,9 @@ class AudioSystem {
   }
 }
 
-  // 3. RENDER ENGINE & SPRITE BANK
-  /**
+  // RENDER ENGINE & SPRITE BANK
+
+/**
  * ============================================================================
  * SpriteBank — Catálogo Centralizado de Assets Urbanos & Edificações
  * ============================================================================
@@ -926,12 +931,16 @@ class SpriteBank {
     this.totalCount = 0;
 
     const residentialFiles = [
+      // Sprites Procedurais (tiny, top-down simples)
       'sub_building-type-a.png', 'sub_building-type-b.png', 'sub_building-type-c.png', 'sub_building-type-d.png',
       'sub_building-type-e.png', 'sub_building-type-f.png', 'sub_building-type-g.png', 'sub_building-type-h.png',
       'sub_building-type-i.png', 'sub_building-type-j.png', 'sub_building-type-k.png', 'sub_building-type-l.png',
       'sub_building-type-m.png', 'sub_building-type-n.png', 'sub_building-type-o.png', 'sub_building-type-p.png',
       'sub_building-type-q.png', 'sub_building-type-r.png', 'sub_building-type-s.png', 'sub_building-type-t.png',
-      'sub_building-type-u.png'
+      'sub_building-type-u.png',
+      // Sprites Painterly Satélite HD (Lote 1)
+      'res_house_simple.png', 'res_house_backyard.png', 'res_house_twostory.png',
+      'res_duplex.png', 'res_vila.png'
     ];
 
     const commercialFiles = [
@@ -1023,7 +1032,8 @@ class SpriteBank {
     return list[idx];
   }
 }
-  /**
+
+/**
  * ============================================================================
  * CityGridEngine — Motor de Montagem Procedural & Acoplamento na Grade
  * ============================================================================
@@ -1256,7 +1266,8 @@ class CityGridEngine {
     return grid;
   }
 }
-  
+
+
 class MapRenderer {
   constructor(canvas, spriteBank = null) {
     this.canvas = canvas;
@@ -1655,8 +1666,9 @@ class MapRenderer {
   }
 }
 
-  // 4. GAMEPLAY & UI
-  class DroneController {
+  // GAMEPLAY & UI
+
+class DroneController {
     constructor(startX, startY) {
       this.x = startX;
       this.y = startY;
@@ -1696,7 +1708,8 @@ class MapRenderer {
   }
 
   // 7. HUD TÁTICO & OPERADORES BOOLEANOS
-  class TacticalHUD {
+
+class TacticalHUD {
     constructor(bus, audio) {
       this.bus = bus;
       this.audio = audio;
@@ -1891,7 +1904,8 @@ class MapRenderer {
   }
 
   // 8. TUTORIAL INTERATIVO / ONBOARDING DO COMANDANTE
-  class TutorialManager {
+
+class TutorialManager {
     constructor(audio, bus) {
       this.audio = audio;
       this.bus = bus;
@@ -1982,8 +1996,9 @@ class MapRenderer {
 
   // 9. MOTOR PRINCIPAL DA OPERAÇÃO NEXO
 
-  // 5. ORCHESTRATOR
-  /**
+  // ORCHESTRATOR
+
+/**
  * ============================================================================
  * Operação NEXO: Comando & Resgate — Orquestrador Modular Principal
  * ============================================================================
