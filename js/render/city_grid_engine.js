@@ -14,12 +14,16 @@ export class CityGridEngine {
     this.cachedKey = "";
 
     this.residentialSprites = [
+      // Sprites procedurais top-down
       "sub_building-type-a.png", "sub_building-type-b.png", "sub_building-type-c.png", "sub_building-type-d.png",
       "sub_building-type-e.png", "sub_building-type-f.png", "sub_building-type-g.png", "sub_building-type-h.png",
       "sub_building-type-i.png", "sub_building-type-j.png", "sub_building-type-k.png", "sub_building-type-l.png",
       "sub_building-type-m.png", "sub_building-type-n.png", "sub_building-type-o.png", "sub_building-type-p.png",
       "sub_building-type-q.png", "sub_building-type-r.png", "sub_building-type-s.png", "sub_building-type-t.png",
-      "sub_building-type-u.png"
+      "sub_building-type-u.png",
+      // Sprites Painterly Satélite HD (Lote 1)
+      "res_house_simple.png", "res_house_backyard.png", "res_house_twostory.png",
+      "res_duplex.png", "res_vila.png"
     ];
 
     this.commercialSprites = [
