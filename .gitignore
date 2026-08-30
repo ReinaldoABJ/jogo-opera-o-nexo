@@ -43,3 +43,7 @@ tmp/
 temp/
 scratch/
 .system_generated/
+*.zip
+assets/sprites/raw_downloads/
+assets/sprites/extracted_cc0/
+

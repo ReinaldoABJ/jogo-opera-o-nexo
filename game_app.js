@@ -673,22 +673,217 @@
   }
 
   // 5. MAP RENDERER (SATÉLITE REALISTA COM COVER & PROCEDURAL FALLBACK)
+  // 7. MOTOR DE GRADE PROCEDURAL & ANCORAGEM SEMÂNTICA (Grid Snap System)
+  class CityGridEngine {
+    constructor(cols = 8, rows = 6) {
+      this.cols = cols;
+      this.rows = rows;
+      this.cachedGrid = null;
+      this.cachedKey = '';
+    }
+
+    getGridCell(normX, normY) {
+      const col = Math.min(this.cols - 1, Math.max(0, Math.floor(normX * this.cols)));
+      const row = Math.min(this.rows - 1, Math.max(0, Math.floor(normY * this.rows)));
+      return { col, row };
+    }
+
+    getCellCenter(col, row, width, height) {
+      const cellW = width / this.cols;
+      const cellH = height / this.rows;
+      return {
+        x: (col + 0.5) * cellW,
+        y: (row + 0.5) * cellH,
+        cellW,
+        cellH
+      };
+    }
+
+    generateLayout(missionId, dailySeed = 42, stages = []) {
+      const key = `${missionId || 'nexo'}_${dailySeed}_${stages.map(s => s.sector_id || s.sector_name || '').join('-')}`;
+      if (this.cachedGrid && this.cachedKey === key) {
+        return this.cachedGrid;
+      }
+
+      let seedValue = 0;
+      for (let i = 0; i < key.length; i++) {
+        seedValue = (seedValue << 5) - seedValue + key.charCodeAt(i);
+        seedValue |= 0;
+      }
+      const rand = () => {
+        seedValue = (seedValue * 9301 + 49297) % 233280;
+        return seedValue / 233280;
+      };
+
+      const targetCells = new Map();
+      stages.forEach((stage, idx) => {
+        const coords = stage.coordinates || { x: 180 + idx * 140, y: 140 + idx * 80 };
+        const normX = Math.min(0.92, Math.max(0.08, coords.x / 700));
+        const normY = Math.min(0.92, Math.max(0.08, coords.y / 520));
+        const cell = this.getGridCell(normX, normY);
+        targetCells.set(`${cell.col},${cell.row}`, {
+          stageIdx: idx,
+          stageData: stage
+        });
+      });
+
+      const suburbanTypes = [
+        'sub_building-type-a.png', 'sub_building-type-b.png', 'sub_building-type-c.png', 'sub_building-type-d.png',
+        'sub_building-type-e.png', 'sub_building-type-f.png', 'sub_building-type-g.png', 'sub_building-type-h.png',
+        'sub_building-type-i.png', 'sub_building-type-j.png', 'sub_building-type-k.png', 'sub_building-type-l.png',
+        'sub_building-type-m.png', 'sub_building-type-n.png', 'sub_building-type-o.png', 'sub_building-type-p.png',
+        'sub_building-type-q.png', 'sub_building-type-r.png', 'sub_building-type-s.png', 'sub_building-type-t.png',
+        'sub_building-type-u.png'
+      ];
+
+      const commTypes = [
+        'comm_building-a.png', 'comm_building-b.png', 'comm_building-c.png', 'comm_building-d.png',
+        'comm_building-e.png', 'comm_building-f.png', 'comm_building-g.png', 'comm_building-h.png',
+        'comm_building-i.png', 'comm_building-j.png', 'comm_building-k.png', 'comm_building-l.png',
+        'comm_building-m.png', 'comm_building-n.png', 'comm_building-skyscraper-a.png', 'comm_building-skyscraper-b.png',
+        'comm_building-skyscraper-c.png', 'comm_building-skyscraper-d.png', 'comm_building-skyscraper-e.png'
+      ];
+
+      const grid = [];
+      for (let r = 0; r < this.rows; r++) {
+        for (let c = 0; c < this.cols; c++) {
+          const cellKey = `${c},${r}`;
+          if (targetCells.has(cellKey)) {
+            const target = targetCells.get(cellKey);
+            const nameLower = (target.stageData.sector_name || '').toLowerCase();
+            let spriteKey = 'escola_municipal';
+
+            if (nameLower.includes('hosp') || nameLower.includes('médic') || nameLower.includes('saude') || nameLower.includes('saúde') || nameLower.includes('urgên')) {
+              spriteKey = 'hospital_regional';
+            } else if (nameLower.includes('subest') || nameLower.includes('energ') || nameLower.includes('elétr') || nameLower.includes('eletro')) {
+              spriteKey = 'subestacao_eletrica';
+            } else if (nameLower.includes('quim') || nameLower.includes('quím') || nameLower.includes('fabri') || nameLower.includes('fábri') || nameLower.includes('refin') || nameLower.includes('indús') || nameLower.includes('indus') || nameLower.includes('gás')) {
+              spriteKey = 'fabrica_quimica';
+            } else if (nameLower.includes('pref') || nameLower.includes('gov') || nameLower.includes('civic') || nameLower.includes('cívic') || nameLower.includes('forum') || nameLower.includes('fórum') || nameLower.includes('centro')) {
+              spriteKey = 'prefeitura_civica';
+            } else if (nameLower.includes('escol') || nameLower.includes('univer') || nameLower.includes('coleg') || nameLower.includes('colég') || nameLower.includes('aluno')) {
+              spriteKey = 'escola_municipal';
+            } else {
+              const fallbackList = ['escola_municipal', 'hospital_regional', 'subestacao_eletrica', 'fabrica_quimica', 'prefeitura_civica'];
+              spriteKey = fallbackList[target.stageIdx % fallbackList.length];
+            }
+
+            grid.push({
+              col: c,
+              row: r,
+              isTarget: true,
+              stageIdx: target.stageIdx,
+              stageData: target.stageData,
+              structure: {
+                type: 'target_hero',
+                name: target.stageData.sector_name || 'Alvo de Resgate',
+                spriteKey: spriteKey
+              }
+            });
+          } else {
+            const roll = rand();
+            if (roll < 0.45) {
+              // Casa / Quarteirão Residencial com Sprite
+              const subIdx = Math.floor(rand() * suburbanTypes.length);
+              grid.push({
+                col: c,
+                row: r,
+                isTarget: false,
+                stageIdx: -1,
+                stageData: null,
+                structure: {
+                  type: 'suburban_house',
+                  name: 'Residência Urbana',
+                  spriteKey: suburbanTypes[subIdx],
+                  ground: 'grass'
+                }
+              });
+            } else if (roll < 0.80) {
+              // Edifício Comercial com Sprite
+              const commIdx = Math.floor(rand() * commTypes.length);
+              grid.push({
+                col: c,
+                row: r,
+                isTarget: false,
+                stageIdx: -1,
+                stageData: null,
+                structure: {
+                  type: 'commercial_tower',
+                  name: 'Torre Comercial',
+                  spriteKey: commTypes[commIdx],
+                  ground: 'pavement'
+                }
+              });
+            } else if (roll < 0.92) {
+              // Praça Pública Arborizada
+              grid.push({
+                col: c,
+                row: r,
+                isTarget: false,
+                stageIdx: -1,
+                stageData: null,
+                structure: {
+                  type: 'urban_park',
+                  name: 'Praça Pública',
+                  ground: 'park'
+                }
+              });
+            } else {
+              // Pátio de Carga e Estacionamento
+              grid.push({
+                col: c,
+                row: r,
+                isTarget: false,
+                stageIdx: -1,
+                stageData: null,
+                structure: {
+                  type: 'parking_lot',
+                  name: 'Estacionamento',
+                  ground: 'parking'
+                }
+              });
+            }
+          }
+        }
+      }
+
+      this.cachedGrid = grid;
+      this.cachedKey = key;
+      return grid;
+    }
+  }
+
   class MapRenderer {
     constructor(canvas) {
       this.canvas = canvas;
       this.ctx = canvas.getContext('2d');
       this.rotorAngle = 0;
+      this.gridEngine = new CityGridEngine(8, 6);
       this.smoke = [];
-      for (let i = 0; i < 20; i++) {
-        this.smoke.push({ x: 180 + (Math.random() * 30 - 15), y: 140 + (Math.random() * 30 - 15), r: Math.random() * 8 + 4, a: Math.random() * 0.5 + 0.2, sp: Math.random() * 0.4 + 0.2 });
+      for (let i = 0; i < 28; i++) {
+        this.smoke.push({
+          x: 180 + (Math.random() * 30 - 15),
+          y: 140 + (Math.random() * 30 - 15),
+          r: Math.random() * 8 + 4,
+          a: Math.random() * 0.5 + 0.2,
+          sp: Math.random() * 0.4 + 0.2
+        });
       }
 
       this.currentMapSrc = '';
       this.mapLoaded = false;
-      this.droneLoaded = false;
-
       this.loadMap('./assets/sprites/map_satellite.png');
 
+      // Sprites HD das Edificações de Emergência (Alvos)
+      this.buildingSprites = {};
+      const heroKeys = ['escola_municipal', 'hospital_regional', 'subestacao_eletrica', 'fabrica_quimica', 'prefeitura_civica'];
+      heroKeys.forEach(k => {
+        const img = new Image();
+        img.onload = () => { this.buildingSprites[k] = img; };
+        img.src = `./assets/sprites/buildings/${k}.jpg`;
+      });
+
+      this.droneLoaded = false;
       this.droneImg = new Image();
       this.droneImg.onload = () => { this.droneLoaded = true; };
       this.droneImg.src = './assets/sprites/drone.png';
@@ -701,7 +896,7 @@
       this.mapLoaded = false;
       this.mapImg = new Image();
       this.mapImg.onload = () => { this.mapLoaded = true; };
-      this.mapImg.onerror = () => { this.mapLoaded = false; }; // Fallback procedural automático
+      this.mapImg.onerror = () => { this.mapLoaded = false; };
       this.mapImg.src = src;
     }
 
@@ -710,12 +905,22 @@
       this.canvas.height = h;
     }
 
+    getSectorScreenPosition(sector, stages, width, height) {
+      if (!sector) return { x: width * 0.5, y: height * 0.5 };
+      const coords = sector.coordinates || { x: 180, y: 140 };
+      const normX = Math.min(0.92, Math.max(0.08, coords.x / 700));
+      const normY = Math.min(0.92, Math.max(0.08, coords.y / 520));
+      const cell = this.gridEngine.getGridCell(normX, normY);
+      const center = this.gridEngine.getCellCenter(cell.col, cell.row, width, height);
+      return { x: center.x, y: center.y, cell };
+    }
+
     render(drone, sector, waypoint, threatRatio = 0, currentMission = null, activeStageIdx = 0) {
       const ctx = this.ctx;
       const w = this.canvas.width || 700;
       const h = this.canvas.height || 520;
 
-      // 1. Renderização da Imagem de Satélite com Aspect-Ratio Preservado (Cover Inteligente)
+      // 1. Camada 0: Imagem Fotográfica de Satélite de Alta Definição (Cobre 100% do Cenário)
       if (this.mapLoaded && this.mapImg.naturalWidth > 0) {
         const imgW = this.mapImg.naturalWidth;
         const imgH = this.mapImg.naturalHeight;
@@ -729,50 +934,78 @@
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(this.mapImg, offsetX, offsetY, renderW, renderH);
 
-        // Filtro tático
-        ctx.fillStyle = 'rgba(17, 20, 23, 0.35)';
+        // Filtro tático translúcido
+        ctx.fillStyle = 'rgba(17, 20, 23, 0.22)';
         ctx.fillRect(0, 0, w, h);
       } else {
-        // Fallback Procedural de Alta Fidelidade (Quarteirões e Prédios)
-        ctx.fillStyle = '#1c2226';
+        // Fallback de Terreno se imagem estiver carregando
+        ctx.fillStyle = '#1c242c';
         ctx.fillRect(0, 0, w, h);
-
-        const bldgs = [
-          { x: 40, y: 40, w: 100, h: 80, c: '#2b353e' },
-          { x: 180, y: 50, w: 120, h: 90, c: '#33404b' },
-          { x: 340, y: 40, w: 90, h: 110, c: '#2b353e' },
-          { x: 470, y: 60, w: 140, h: 80, c: '#35434e' },
-          { x: 50, y: 180, w: 90, h: 120, c: '#313e48' },
-          { x: 230, y: 220, w: 140, h: 100, c: '#2d3842' },
-          { x: 410, y: 200, w: 110, h: 130, c: '#384855' },
-          { x: 60, y: 350, w: 150, h: 90, c: '#2a343d' },
-          { x: 260, y: 370, w: 110, h: 80, c: '#33414c' },
-          { x: 420, y: 380, w: 160, h: 80, c: '#2e3a44' }
-        ];
-        bldgs.forEach(b => {
-          ctx.fillStyle = b.c;
-          ctx.fillRect(b.x, b.y, b.w, b.h);
-          ctx.strokeStyle = '#273038';
-          ctx.strokeRect(b.x, b.y, b.w, b.h);
-          ctx.fillStyle = '#181f25';
-          ctx.fillRect(b.x + 10, b.y + 10, 16, 16);
-        });
-
-        ctx.strokeStyle = '#4a5c4c'; ctx.lineWidth = 2;
-        ctx.strokeRect(20, 20, 50, 50);
-        ctx.fillStyle = '#4ec95c'; ctx.font = '10px monospace';
-        ctx.fillText('BASE-01', 24, 48);
       }
 
-      // 2. Corredor Tático de Voo da Missão Multissetorial
-      if (currentMission && currentMission.stages) {
-        this.drawFlightCorridor(ctx, currentMission, activeStageIdx);
+      // 2. Camada 1: Alvos de Emergência da Missão Ancorados na Grade
+      const stages = (currentMission && currentMission.stages) ? currentMission.stages : (sector ? [sector] : []);
+      const missionId = currentMission ? (currentMission.id || currentMission.title) : 'nexo_default';
+      const gridLayout = this.gridEngine.generateLayout(missionId, 42, stages);
+
+      const cellW = w / this.gridEngine.cols;
+      const cellH = h / this.gridEngine.rows;
+
+      // Renderizar Alvos de Emergência da Missão com Sprites HD
+      gridLayout.forEach(cell => {
+        if (cell.isTarget) {
+          const marginX = cellW * 0.08;
+          const marginY = cellH * 0.08;
+          const bx = cell.col * cellW + marginX;
+          const by = cell.row * cellH + marginY;
+          const bw = cellW - marginX * 2;
+          const bh = cellH - marginY * 2;
+
+          // Sombra Projetada
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.fillRect(bx + 4, by + 4, bw, bh);
+
+          // Sprite HD do Alvo
+          const sKey = cell.structure.spriteKey;
+          if (sKey && this.buildingSprites[sKey] && this.buildingSprites[sKey].naturalWidth > 0) {
+            const sImg = this.buildingSprites[sKey];
+            ctx.save();
+            ctx.drawImage(sImg, bx, by, bw, bh);
+            ctx.restore();
+          } else {
+            ctx.fillStyle = 'rgba(35, 45, 54, 0.9)';
+            ctx.fillRect(bx, by, bw, bh);
+          }
+
+          // Moldura Tática de Reconhecimento
+          const isActive = cell.stageIdx === activeStageIdx;
+          ctx.strokeStyle = isActive ? '#e5a00d' : 'rgba(229, 160, 13, 0.6)';
+          ctx.lineWidth = isActive ? 3 : 2;
+          ctx.strokeRect(bx, by, bw, bh);
+
+          // Tag de Identificação [A], [B]
+          ctx.fillStyle = 'rgba(17, 20, 23, 0.92)';
+          ctx.fillRect(bx + 2, by + 2, 28, 16);
+          ctx.strokeStyle = '#e5a00d';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(bx + 2, by + 2, 28, 16);
+          ctx.fillStyle = '#e5a00d';
+          ctx.font = 'bold 10px monospace';
+          const stageChar = String.fromCharCode(65 + Math.max(0, cell.stageIdx));
+          ctx.fillText(`[${stageChar}]`, bx + 6, by + 14);
+        }
+      });
+
+      // 3. Corredor Tático de Voo da Missão
+      if (currentMission && currentMission.stages && currentMission.stages.length > 1) {
+        this.drawFlightCorridor(ctx, currentMission, activeStageIdx, w, h);
       }
 
-      // 3. Fumaça & Gás Tóxico em Expansão Dinâmica por Nível de Risco
-      if (sector && sector.coordinates) {
-        const sx = sector.coordinates.x;
-        const sy = sector.coordinates.y;
+      // 4. Efeitos Dinâmicos de Desastre (Chamas, Fumaça e Gás) no Setor Ativo
+      if (sector) {
+        const targetPos = this.getSectorScreenPosition(sector, stages, w, h);
+        const sx = targetPos.x;
+        const sy = targetPos.y;
         const spreadFactor = 1 + threatRatio * 1.5;
         const isGas = sector.sensors && sector.sensors.GAS_TOXICO;
         const isFire = sector.sensors && sector.sensors.FOGO_ATIVO !== false;
@@ -780,32 +1013,32 @@
         this.smoke.forEach(p => {
           p.y -= p.sp * (1 + threatRatio * 0.8);
           if (p.y < sy - 50 * spreadFactor) {
-            p.y = sy + (Math.random() * 24 - 12);
-            p.x = sx + (Math.random() * 40 - 20) * spreadFactor;
+            p.y = sy + (Math.random() * 20 - 10);
+            p.x = sx + (Math.random() * 32 - 16) * spreadFactor;
           }
 
           if (isFire) {
-            ctx.fillStyle = `rgba(${180 + Math.floor(threatRatio * 75)}, ${60 - Math.floor(threatRatio * 30)}, 30, ${p.a * (0.35 + threatRatio * 0.4)})`;
+            ctx.fillStyle = `rgba(${190 + Math.floor(threatRatio * 65)}, ${70 - Math.floor(threatRatio * 35)}, 25, ${p.a * (0.35 + threatRatio * 0.4)})`;
             ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + threatRatio * 0.6), 0, Math.PI * 2); ctx.fill();
           }
 
           if (isGas) {
-            ctx.fillStyle = `rgba(110, 180, 50, ${p.a * (0.3 + threatRatio * 0.35)})`;
-            ctx.beginPath(); ctx.arc(p.x - 8, p.y + 4, p.r * (1.1 + threatRatio * 0.5), 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = `rgba(100, 190, 45, ${p.a * (0.3 + threatRatio * 0.35)})`;
+            ctx.beginPath(); ctx.arc(p.x - 6, p.y + 4, p.r * (1.1 + threatRatio * 0.5), 0, Math.PI * 2); ctx.fill();
           }
 
           // Fumaça densa
-          ctx.fillStyle = `rgba(40, 45, 50, ${p.a * (0.5 + threatRatio * 0.3)})`;
+          ctx.fillStyle = `rgba(35, 40, 45, ${p.a * (0.5 + threatRatio * 0.3)})`;
           ctx.beginPath(); ctx.arc(p.x + 4, p.y - 6, p.r * 1.3 * (1 + threatRatio * 0.4), 0, Math.PI * 2); ctx.fill();
         });
 
         // Marcador e Raio de Emergência Pulsante com Expansão Térmica
-        const baseRadius = 28;
-        const expandRadius = baseRadius + threatRatio * 32;
+        const baseRadius = Math.min(cellW, cellH) * 0.4;
+        const expandRadius = baseRadius + threatRatio * 28;
         const pulse = Math.sin(Date.now() / 180) * (2 + threatRatio * 4);
 
         let perimeterColor = '#4ec95c';
-        let label = 'EMERGÊNCIA (CONTROLADA)';
+        let label = 'SETOR ATIVO (EMERGÊNCIA)';
         if (threatRatio > 0.7) {
           perimeterColor = '#ff3333';
           label = '🚨 COLAPSO IMINENTE!';
@@ -827,10 +1060,10 @@
 
         ctx.fillStyle = perimeterColor;
         ctx.font = 'bold 11px sans-serif';
-        ctx.fillText(label, sx - 48, sy - expandRadius - 8);
+        ctx.fillText(label, sx - 50, sy - expandRadius - 8);
       }
 
-      // 4. Waypoint
+      // 5. Waypoint
       if (waypoint && waypoint.x !== undefined) {
         ctx.strokeStyle = '#e5a00d'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]);
         ctx.beginPath(); ctx.arc(waypoint.x, waypoint.y, 12, 0, Math.PI * 2); ctx.stroke();
@@ -839,26 +1072,25 @@
         ctx.setLineDash([]);
       }
 
-      // 5. Drone
+      // 6. Drone Militar Tático com Hélices Animadas
       if (drone) {
         ctx.save();
         ctx.translate(drone.x, drone.y);
         ctx.rotate(drone.angle);
 
-        ctx.strokeStyle = 'rgba(78, 201, 92, 0.4)'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(0, 0, 44, 0, Math.PI * 2); ctx.stroke();
-
         if (this.droneLoaded && this.droneImg.naturalWidth > 0) {
-          const dW = this.droneImg.naturalWidth;
-          const dH = this.droneImg.naturalHeight;
-          const maxDim = 56;
-          const dRatio = dW / dH;
-          let drawW = maxDim;
-          let drawH = maxDim;
-          if (dRatio > 1) {
-            drawH = maxDim / dRatio;
-          } else {
-            drawW = maxDim * dRatio;
+          const drawW = 38;
+          const drawH = 38;
+          if (drone.isMoving) {
+            this.rotorAngle += 0.5;
+            ctx.save();
+            ctx.rotate(this.rotorAngle);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, 22, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
           }
           ctx.drawImage(this.droneImg, -drawW / 2, -drawH / 2, drawW, drawH);
         } else {
@@ -883,25 +1115,27 @@
         ctx.restore();
       }
 
-      // 6. Grid Militar
-      ctx.strokeStyle = 'rgba(56, 69, 80, 0.2)'; ctx.lineWidth = 0.5;
+      // 7. Grid Militar Translúcido de Satélite
+      ctx.strokeStyle = 'rgba(56, 69, 80, 0.15)'; ctx.lineWidth = 0.5;
       for (let x = 0; x < w; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
       for (let y = 0; y < h; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
     }
 
-    drawFlightCorridor(ctx, mission, activeStageIdx) {
+    drawFlightCorridor(ctx, mission, activeStageIdx, w, h) {
       if (!mission || !mission.stages || mission.stages.length <= 1) return;
       const stages = mission.stages;
 
+      const baseCenter = this.gridEngine.getCellCenter(0, 0, w, h);
       ctx.save();
       ctx.strokeStyle = 'rgba(229, 160, 13, 0.45)';
       ctx.lineWidth = 1.5;
       ctx.setLineDash([5, 5]);
 
       ctx.beginPath();
-      ctx.moveTo(45, 45); // Base-01
+      ctx.moveTo(baseCenter.x, baseCenter.y);
       stages.forEach(st => {
-        if (st.coordinates) ctx.lineTo(st.coordinates.x, st.coordinates.y);
+        const pos = this.getSectorScreenPosition(st, stages, w, h);
+        ctx.lineTo(pos.x, pos.y);
       });
       ctx.stroke();
       ctx.setLineDash([]);
@@ -909,62 +1143,88 @@
 
       // Marcadores dos Pontos Encadeados da Missão
       stages.forEach((st, idx) => {
-        if (!st.coordinates) return;
-        const { x, y } = st.coordinates;
+        const pos = this.getSectorScreenPosition(st, stages, w, h);
+        const { x, y } = pos;
         const isDone = idx < activeStageIdx;
         const isActive = idx === activeStageIdx;
 
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, 12, 0, Math.PI * 2);
         if (isDone) {
-          ctx.fillStyle = '#4ec95c';
-          ctx.beginPath();
-          ctx.arc(x, y, 12, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(78, 201, 92, 0.35)';
           ctx.fill();
-          ctx.fillStyle = '#111417';
-          ctx.font = 'bold 11px sans-serif';
-          ctx.fillText('✓', x - 4, y + 4);
-        } else if (!isActive) {
-          ctx.strokeStyle = '#556877';
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([3, 3]);
-          ctx.beginPath();
-          ctx.arc(x, y, 12, 0, Math.PI * 2);
+          ctx.strokeStyle = '#4ec95c';
+          ctx.lineWidth = 2;
           ctx.stroke();
-          ctx.setLineDash([]);
-
-          ctx.fillStyle = '#8fa3b0';
-          ctx.font = 'bold 9px monospace';
-          ctx.fillText(`P${idx + 1}`, x - 6, y + 3);
+          ctx.fillStyle = '#4ec95c';
+          ctx.font = 'bold 10px monospace';
+          ctx.fillText('✓', x - 4, y + 4);
+        } else if (isActive) {
+          ctx.fillStyle = 'rgba(229, 160, 13, 0.3)';
+          ctx.fill();
+          ctx.strokeStyle = '#e5a00d';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.fillStyle = '#e5a00d';
+          ctx.font = 'bold 10px monospace';
+          ctx.fillText(String.fromCharCode(65 + idx), x - 4, y + 4);
+        } else {
+          ctx.fillStyle = 'rgba(56, 69, 80, 0.3)';
+          ctx.fill();
+          ctx.strokeStyle = '#6e7d8a';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.fillStyle = '#8c9ba5';
+          ctx.font = 'bold 10px monospace';
+          ctx.fillText(String.fromCharCode(65 + idx), x - 4, y + 4);
         }
+        ctx.restore();
       });
     }
   }
 
-  // 6. FÍSICA DO DRONE
+  // 6. CONTROLE DO DRONE (FÍSICA SUAVE)
   class DroneController {
-    constructor(x = 45, y = 45) {
-      this.x = x; this.y = y; this.vx = 0; this.vy = 0; this.angle = 0;
-      this.targetX = null; this.targetY = null;
+    constructor(startX, startY) {
+      this.x = startX;
+      this.y = startY;
+      this.targetX = startX;
+      this.targetY = startY;
+      this.speed = 130;
+      this.angle = 0;
+      this.isMoving = false;
     }
-    setDestination(x, y) { this.targetX = x; this.targetY = y; }
+
+    setDestination(x, y) {
+      this.targetX = x;
+      this.targetY = y;
+      this.isMoving = true;
+    }
+
     update(dt) {
-      if (this.targetX === null || this.targetY === null) return;
       const dx = this.targetX - this.x;
       const dy = this.targetY - this.y;
       const dist = Math.hypot(dx, dy);
-      if (dist < 5) { this.x = this.targetX; this.y = this.targetY; this.vx = 0; this.vy = 0; return; }
-      const targetAngle = Math.atan2(dy, dx) + Math.PI / 2;
-      this.angle += (targetAngle - this.angle) * 0.15;
-      const dirX = dx / dist; const dirY = dy / dist;
-      const factor = Math.min(1.0, dist / 40);
-      this.vx += dirX * 240 * dt * factor;
-      this.vy += dirY * 240 * dt * factor;
-      this.vx *= 0.92; this.vy *= 0.92;
-      this.x += this.vx * dt * 160;
-      this.y += this.vy * dt * 160;
+
+      if (dist > 4) {
+        this.isMoving = true;
+        const targetAngle = Math.atan2(dy, dx) + Math.PI / 2;
+        let diff = targetAngle - this.angle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        this.angle += diff * Math.min(1, dt * 6);
+
+        const moveDist = Math.min(dist, this.speed * dt);
+        this.x += (dx / dist) * moveDist;
+        this.y += (dy / dist) * moveDist;
+      } else {
+        this.isMoving = false;
+      }
     }
   }
 
-  // 7. HUD TÁTICO & CONSTRUTOR BOOLEANO COM TOGGLES [ + / NOT ]
+  // 7. HUD TÁTICO & OPERADORES BOOLEANOS
   class TacticalHUD {
     constructor(bus, audio) {
       this.bus = bus;
@@ -1068,8 +1328,16 @@
            </div>`
         : '';
 
+      const situationReportHtml = sec.situation_report ? `
+        <div style="background:#111518; border-left:3px solid var(--military-amber); padding:6px 10px; border-radius:3px; font-size:0.78rem; color:#d2dbe2; margin-bottom:4px; line-height:1.35;">
+          <strong style="color:var(--military-amber); display:block; margin-bottom:2px; font-size:0.72rem; letter-spacing:0.5px;">🚨 RELATÓRIO DE SITUAÇÃO / BRIEFING:</strong>
+          ${sec.situation_report}
+        </div>
+      ` : '';
+
       this.consoleEl.innerHTML = `
         ${stageBadge}
+        ${situationReportHtml}
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <span class="console-section-title">🛰️ SENSORES FLIR — ${sec.sector_name}</span>
           <button id="btn-toggle-syntax" class="btn-secondary-tactical" style="padding:2px 6px; font-size:0.75rem;">
@@ -1274,6 +1542,10 @@
 
       this.resize();
       window.addEventListener('resize', () => this.resize());
+      if (window.ResizeObserver && this.canvas.parentElement) {
+        const ro = new ResizeObserver(() => this.resize());
+        ro.observe(this.canvas.parentElement);
+      }
 
       // Clique no canvas -> Move drone
       this.canvas.addEventListener('pointerdown', (e) => {
@@ -1621,8 +1893,9 @@
       this.timer = st.time_limit || 45;
       this.hintsUsedInSector = 0;
 
-      if (st.coordinates) {
-        this.drone.setDestination(st.coordinates.x, st.coordinates.y);
+      if (st) {
+        const targetPos = this.renderer.getSectorScreenPosition(st, stages, this.canvas.width || 700, this.canvas.height || 520);
+        this.drone.setDestination(targetPos.x, targetPos.y);
       }
 
       this.hud.selectedProtoIdx = 0;

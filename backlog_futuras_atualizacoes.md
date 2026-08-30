@@ -42,4 +42,14 @@ Este documento registra as 5 melhorias e novos requisitos definidos para a próx
 - [x] Fase 3: Cronômetro de Urgência & Gravidade de Risco Dinâmico (Concluído em 27/08/2026)
 - [x] Fase 4: Mecânica Multissetorial de Missões Encadeadas (Concluído em 27/08/2026)
 - [x] Fase 5: Tutorial Interativo / Onboarding (Concluído em 27/08/2026)
-- [x] Evolução de Gameplay: Toggles de Negação `[ + / NOT ]`, Decisão de Protocolo Único (Alpha/Bravo/Charlie/Delta) e Arquitetura de Temporadas para 6 Meses (24 Semanas) com Fallback Procedural de Mapas (Concluído em 27/08/2026)
+- [x] Evolução de Gameplay: Toggles de Negação `[ + / NOT ]`, Decisão de Protocolo Único (Alpha/Bravo/Charlie/Delta) e Arquitetura de Temporadas para 6 Meses (24 Semanas) (Concluído em 27/08/2026)
+- [x] **Sprint de Polimento & Ergonomia (30/08/2026):**
+  - [x] **1. Viewport Lock 100vh / No-Scroll:** Eliminação de 100% da rolagem de página no notebook e celular com responsividade dinâmica.
+  - [x] **2. Motor de Grade Procedural (`CityGridEngine`):** Divisão urbana $8 \times 6$ com ancoragem de nós de emergência e geração de lotes adjacentes por semente determinística.
+  - [x] **3. Banco de Sprites Top-Down:** Injeção e renderização de sprites com visão de satélite ortográfica 90° (Escola, Hospital, Subestação, Fábrica Química, Prefeitura).
+
+---
+
+## 🏆 Resultado & Próximos Passos
+O núcleo da Operação NEXO encontra-se 100% polido, estável, escalável e enquadrado em qualquer tamanho de tela com geração infinita de mapas e zero repetição.
+
