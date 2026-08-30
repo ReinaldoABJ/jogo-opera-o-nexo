@@ -49,7 +49,7 @@ export class TacticalHUD {
       for (const [k, v] of Object.entries(sec.sensors || {})) {
         sensorsHtml += `
           <div class="sensor-box ${v ? 'val-true' : 'val-false'}">
-            <span>${k}</span><strong>${v ? '🟢 TRUE' : '⚪ FALSE'}</strong>
+            <span>${k}</span><strong>${v ? '🟢 T' : '⚪ F'}</strong>
           </div>`;
       }
 
@@ -57,13 +57,14 @@ export class TacticalHUD {
       let tabsHtml = '';
       protocols.forEach((p, idx) => {
         const active = idx === this.selectedProtoIdx 
-          ? 'border-color:var(--military-amber); color:var(--military-amber); background:rgba(229,160,13,0.12);' 
+          ? 'border-color:var(--military-amber); color:var(--military-amber); background:rgba(229,160,13,0.18); font-weight:bold;' 
           : '';
-        tabsHtml += `<button class="btn-secondary-tactical proto-tab-btn" data-idx="${idx}" style="${active}">${p.title}</button>`;
+        const shortTitle = p.title.includes('—') ? p.title.split('—')[1].trim() : p.title;
+        tabsHtml += `<button class="btn-secondary-tactical proto-tab-btn" data-idx="${idx}" style="${active}" title="${p.title}">[${p.type || idx + 1}] ${shortTitle}</button>`;
       });
 
       // 3. Fórmula com Polarity Toggles [ + / NOT ] e Conectivos [ ? ]
-      let formulaHtml = '<div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-family:var(--font-mono); font-size:0.88rem;">';
+      let formulaHtml = '<div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px; font-family:var(--font-mono); font-size:0.84rem;">';
       if (tokens.length >= 2) formulaHtml += '<span style="color:#6e7d8a; font-weight:bold;">(</span>';
 
       tokens.forEach((token, idx) => {
@@ -95,16 +96,15 @@ export class TacticalHUD {
       formulaHtml += '</div>';
 
       const stageBadge = totalStages > 1 
-        ? `<div style="font-size:0.75rem; background:rgba(229,160,13,0.15); color:var(--military-amber); border:1px solid rgba(229,160,13,0.35); padding:4px 8px; border-radius:4px; margin-bottom:6px; font-weight:bold; display:flex; justify-content:space-between;">
+        ? `<div style="font-size:0.72rem; background:rgba(229,160,13,0.15); color:var(--military-amber); border:1px solid rgba(229,160,13,0.35); padding:3px 6px; border-radius:3px; font-weight:bold; display:flex; justify-content:space-between;">
              <span>📍 ${missionTitle || 'SURTIDA TÁTICA'}</span>
-             <span>ETAPA ${stageIdx + 1} DE ${totalStages}</span>
+             <span>ETAPA ${stageIdx + 1}/${totalStages}</span>
            </div>`
         : '';
 
       const situationReportHtml = sec.situation_report ? `
-        <div style="background:#111518; border-left:3px solid var(--military-amber); padding:6px 10px; border-radius:3px; font-size:0.78rem; color:#d2dbe2; margin-bottom:4px; line-height:1.35;">
-          <strong style="color:var(--military-amber); display:block; margin-bottom:2px; font-size:0.72rem; letter-spacing:0.5px;">🚨 RELATÓRIO DE SITUAÇÃO / BRIEFING:</strong>
-          ${sec.situation_report}
+        <div class="situation-report-box">
+          <strong style="color:var(--military-amber); font-size:0.7rem; letter-spacing:0.5px;">🚨 SITUAÇÃO:</strong> ${sec.situation_report}
         </div>
       ` : '';
 
@@ -112,28 +112,26 @@ export class TacticalHUD {
         ${stageBadge}
         ${situationReportHtml}
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="console-section-title">🛰️ SENSORES FLIR — ${sec.sector_name}</span>
-          <button id="btn-toggle-syntax" class="btn-secondary-tactical" style="padding:2px 6px; font-size:0.75rem;">
-            ${this.isNatural ? '🔤 Linguagem Natural' : '💻 Código Técnico'}
+          <span class="console-section-title">🛰️ SENSORES — ${sec.sector_name}</span>
+          <button id="btn-toggle-syntax" class="btn-secondary-tactical" style="padding:1px 5px; font-size:0.7rem;">
+            ${this.isNatural ? '🔤 Natural' : '💻 Código'}
           </button>
         </div>
         <div class="sensors-grid">${sensorsHtml}</div>
-        <span class="console-section-title">📋 ESCOLHA DO PROTOCOLO TÁTICO</span>
-        <div style="display:flex; gap:6px; flex-direction:column;">${tabsHtml}</div>
+        <span class="console-section-title">📋 PROTOCOLO TÁTICO</span>
+        <div class="proto-tabs-grid">${tabsHtml}</div>
         <div class="protocol-card">
-          <span class="protocol-title">Engenharia da Regra Lógica:</span>
-          <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">
-            Clique em <strong>[ + / NÃO ]</strong> para inverter polaridade e selecione o conectivo nos <strong>[ ? ]</strong>:
-          </p>
           <div class="formula-display">${formulaHtml}</div>
-          <span style="font-size:0.75rem; color:var(--text-muted);">Conectivo para o slot [ ? ] ativo:</span>
-          <div class="operator-palette">
-            <button class="op-btn" data-op="AND">${this.getOpLabel('AND')}</button>
-            <button class="op-btn" data-op="OR">${this.getOpLabel('OR')}</button>
-            <button class="op-btn" data-op="XOR">${this.getOpLabel('XOR')}</button>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+            <span style="font-size:0.7rem; color:var(--text-muted); white-space:nowrap;">Operador [ ? ]:</span>
+            <div class="operator-palette" style="flex:1;">
+              <button class="op-btn" data-op="AND">${this.getOpLabel('AND')}</button>
+              <button class="op-btn" data-op="OR">${this.getOpLabel('OR')}</button>
+              <button class="op-btn" data-op="XOR">${this.getOpLabel('XOR')}</button>
+            </div>
           </div>
         </div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:6px; margin-top:auto;">
           <button id="btn-exec" class="btn-tactical" style="flex:1;">🚀 EXECUTAR PROTOCOLO</button>
           <button id="btn-hint" class="btn-secondary-tactical" style="color:var(--military-amber);">💡 DICA</button>
         </div>
