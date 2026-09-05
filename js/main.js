@@ -30,6 +30,7 @@ export class OperacaoNexo {
       this.currentSeasonIdx = 0;
       this.currentWeekIdx = 0;
       this.currentStageIdx = 0;
+      this.resolvedStages = new Set();
       this.currentMission = null;
       this.currentSector = null;
       this.hintsUsedInSector = 0;
@@ -50,14 +51,30 @@ export class OperacaoNexo {
         ro.observe(this.canvas.parentElement);
       }
 
-      // Clique no canvas -> Move drone
+      // Seleção de Setor via Bus (Barra do HUD ou Atalhos)
+      this.bus.on('SELECT_STAGE', (idx) => {
+        if (this.gameState === 'GAMEPLAY') {
+          this.selectStage(idx);
+        }
+      });
+
+      // Clique no canvas -> Seleciona Setor [A, B, C] ou Move Drone livremente
       this.canvas.addEventListener('pointerdown', (e) => {
         if (this.gameState !== 'GAMEPLAY') return;
         const rect = this.canvas.getBoundingClientRect();
         const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
         const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
-        this.drone.setDestination(x, y);
-        this.audio.playClick();
+
+        const stages = (this.currentMission && this.currentMission.stages) ? this.currentMission.stages : [];
+        const clickedStageIdx = this.renderer.getStageAtPosition(x, y, stages, this.canvas.width, this.canvas.height);
+
+        if (clickedStageIdx !== -1) {
+          this.audio.playClick();
+          this.selectStage(clickedStageIdx);
+        } else {
+          this.drone.setDestination(x, y);
+          this.audio.playClick();
+        }
       });
 
       // Atalhos de Teclado (ESC ou P para Pausa — Bloqueado no Ranqueado)
@@ -111,7 +128,7 @@ export class OperacaoNexo {
           }
         }
 
-        this.renderer.render(this.drone, this.currentSector, { x: this.drone.targetX, y: this.drone.targetY }, threatRatio, this.currentMission, this.currentStageIdx);
+        this.renderer.render(this.drone, this.currentSector, { x: this.drone.targetX, y: this.drone.targetY }, threatRatio, this.currentMission, this.currentStageIdx, this.resolvedStages);
         requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
@@ -192,7 +209,15 @@ export class OperacaoNexo {
           return;
         }
 
-        // 3. Avaliador Booleano Matemático Real
+        // 3. Validação de Janela Crítica de Colapso Estrutural
+        const totalTimeLimit = (sector && sector.time_limit) ? sector.time_limit : 60;
+        if (this.sectorElapsedTime > totalTimeLimit) {
+          const failMsg = `💥 COLAPSO ESTRUTURAL & VÍTIMAS PERDIDAS!\n\nApesar da fórmula montada, o tempo de intervenção (${Math.round(this.sectorElapsedTime)}s) ultrapassou a integridade limite do edifício (${Math.round(totalTimeLimit)}s).\n\nA estrutura ruiu e as vítimas não resistiram aos danos acumulados antes do resgate.`;
+          this.handleDefeat(sector, protocol, failMsg);
+          return;
+        }
+
+        // 4. Avaliador Booleano Matemático Real
         const termValues = tokens.map((token, idx) => {
           const rawVal = !!sensors[token];
           const isNot = !!polarities[idx];
@@ -278,9 +303,12 @@ export class OperacaoNexo {
       this.currentMode = mode;
       this.score = 0;
       this.streak = 0;
+      this.sectorElapsedTime = 0;
+      this.stageReports = [];
       this.currentSeasonIdx = 0;
       this.currentWeekIdx = 0;
       this.currentStageIdx = 0;
+      this.resolvedStages = new Set();
       this.gameState = 'GAMEPLAY';
 
       document.getElementById('main-menu-overlay').style.display = 'none';
@@ -345,7 +373,7 @@ export class OperacaoNexo {
     }
 
     loadSeasonWeek(seasonIdx, weekIdx) {
-      const seasons = LEVELS_DATA.temporadas || [];
+      const seasons = (window.LEVELS_DATA || LEVELS_DATA || {}).temporadas || [];
       const season = seasons[seasonIdx] || seasons[0];
       const weeks = season.weeks || [];
 
@@ -357,17 +385,20 @@ export class OperacaoNexo {
       this.currentMission = JSON.parse(JSON.stringify(weeks[weekIdx]));
       this.currentMission.mission_title = `${season.region_name} • ${this.currentMission.week_title}`;
       this.currentStageIdx = 0;
+      this.resolvedStages = new Set();
+      this.stageReports = [];
+      this.sectorElapsedTime = 0;
 
       // Carrega textura do mapa se houver
       if (this.renderer && this.currentMission.map_image) {
         this.renderer.loadMap(this.currentMission.map_image);
       }
 
-      this.loadStage(0);
+      this.selectStage(0);
     }
 
     loadNextWeek() {
-      const seasons = LEVELS_DATA.temporadas || [];
+      const seasons = (window.LEVELS_DATA || LEVELS_DATA || {}).temporadas || [];
       const season = seasons[this.currentSeasonIdx] || seasons[0];
       const weeks = season.weeks || [];
 
@@ -383,18 +414,20 @@ export class OperacaoNexo {
       }
     }
 
-    loadStage(idx) {
-      this.currentStageIdx = idx;
-      const stages = this.currentMission.stages || [];
-      if (idx >= stages.length) {
-        this.handleVictory(this.currentMission, null);
-        return;
-      }
+    selectStage(idx) {
+      const stages = this.currentMission ? (this.currentMission.stages || []) : [];
+      if (idx < 0 || idx >= stages.length) return;
 
+      this.currentStageIdx = idx;
       const st = stages[idx];
       this.currentSector = st;
-      this.timer = st.time_limit || 45;
       this.hintsUsedInSector = 0;
+
+      // Se for setor novo/não resolvido, reinicia o cronômetro do setor
+      const isResolved = this.resolvedStages && (this.resolvedStages.has(idx) || (st.stage_id && this.resolvedStages.has(st.stage_id)));
+      if (!isResolved) {
+        this.sectorElapsedTime = 0;
+      }
 
       if (st) {
         const targetPos = this.renderer.getSectorScreenPosition(st, stages, this.canvas.width || 700, this.canvas.height || 520);
@@ -404,19 +437,50 @@ export class OperacaoNexo {
       this.hud.selectedProtoIdx = 0;
       this.hud.polarities = [];
       this.hud.slots = ['?', '?'];
-      this.hud.renderSector(st, idx, stages.length, this.currentMission.mission_title);
+      this.hud.renderSector(st, idx, stages, this.resolvedStages, this.currentMission.mission_title, this.stageReports);
+    }
+
+    loadStage(idx) {
+      this.selectStage(idx);
     }
 
     handleStageSuccess(stage, protocol) {
       this.audio.playSuccess();
 
-      const timeRatio = Math.max(0, this.timer / (stage.time_limit || 45));
-      const mult = this.currentMode === 'ranked' ? 1.5 : 1.0;
-      const basePoints = Math.floor((stage.base_score || 1000) * mult);
-      const agilityBonus = Math.floor(basePoints * (timeRatio * 0.45));
-      const gained = basePoints + agilityBonus;
+      this.resolvedStages.add(this.currentStageIdx);
+      if (stage && stage.stage_id) {
+        this.resolvedStages.add(stage.stage_id);
+      }
+
+      const integrity = this.getSectorIntegrity(this.sectorElapsedTime);
+      const integrityPercent = Math.round(integrity * 100);
+      const isSaved = integrity > 0;
+      const basePoints = stage.base_score || 1000;
+      const modeMult = this.currentMode === 'ranked' ? 1.5 : 1.0;
+
+      let gained = 0;
+      if (isSaved) {
+        if (this.sectorElapsedTime <= 10) {
+          gained = Math.floor(basePoints * 1.5 * modeMult);
+        } else {
+          gained = Math.floor(basePoints * (integrity * 1.25) * modeMult);
+        }
+        this.streak++;
+      } else {
+        gained = 0; // Nota zero por colapso estrutural (tempo excedeu 130s)
+        this.streak = 0;
+      }
+
       this.score += gained;
-      this.streak++;
+
+      this.stageReports.push({
+        stageIdx: this.currentStageIdx,
+        stageName: stage.sector_name || `Ponto ${String.fromCharCode(65 + this.currentStageIdx)}`,
+        timeSpent: this.sectorElapsedTime,
+        integrityPercent,
+        isSaved,
+        gained
+      });
 
       const scoreBadge = document.getElementById('hud-score-badge');
       if (scoreBadge) {
@@ -425,11 +489,26 @@ export class OperacaoNexo {
       const streakBadge = document.getElementById('hud-streak-badge');
       if (streakBadge) streakBadge.textContent = `🔥 OFENSIVA: ${this.streak}`;
 
-      const stages = this.currentMission.stages || [];
-      if (this.currentStageIdx + 1 < stages.length) {
-        this.loadStage(this.currentStageIdx + 1);
-      } else {
+      const stages = this.currentMission ? (this.currentMission.stages || []) : [];
+      
+      // Verifica se todos os setores da semana foram pacificados
+      const allResolved = stages.length > 0 && stages.every((st, i) => this.resolvedStages.has(i) || (st.stage_id && this.resolvedStages.has(st.stage_id)));
+
+      if (allResolved) {
         this.handleVictory(this.currentMission, protocol);
+      } else {
+        // Renderiza o setor atual como pacificado
+        this.hud.renderSector(stage, this.currentStageIdx, stages, this.resolvedStages, this.currentMission.mission_title, this.stageReports);
+
+        // Seleciona automaticamente o próximo setor pendente
+        const nextPendingIdx = stages.findIndex((st, i) => !this.resolvedStages.has(i) && (!st.stage_id || !this.resolvedStages.has(st.stage_id)));
+        if (nextPendingIdx !== -1) {
+          setTimeout(() => {
+            if (this.gameState === 'GAMEPLAY') {
+              this.selectStage(nextPendingIdx);
+            }
+          }, 600);
+        }
       }
     }
 
@@ -437,10 +516,45 @@ export class OperacaoNexo {
       this.gameState = 'VICTORY';
       this.audio.playSuccess();
 
-      const stars = this.streak >= 2 ? 3 : (this.hintsUsedInSector === 0 ? 2 : 1);
-      document.getElementById('victory-stars').textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
-      document.getElementById('victory-score-report').innerHTML = `Pontuação Total da Surtida: <strong style="color:var(--military-green);">${this.score} pts</strong> (Ofensiva: 🔥 ${this.streak})`;
-      document.getElementById('victory-details-report').textContent = `${mission.mission_title || mission.week_title || 'Missão'} cumprida com maestria! Todos os setores da surtida foram assegurados.`;
+      const stages = mission.stages || [];
+      const numStages = stages.length || 1;
+      const maxPossibleScore = Math.floor(numStages * 1500 * (this.currentMode === 'ranked' ? 1.5 : 1.0));
+      const efficiency = maxPossibleScore > 0 ? (this.score / maxPossibleScore) : 0;
+      
+      let stars = 0;
+      if (efficiency >= 0.80) stars = 3;
+      else if (efficiency >= 0.50) stars = 2;
+      else if (efficiency >= 0.20) stars = 1;
+      else stars = 0;
+
+      const savedCount = this.stageReports.filter(r => r.isSaved).length;
+
+      document.getElementById('victory-stars').textContent = stars > 0 ? ('⭐'.repeat(stars) + '☆'.repeat(3 - stars)) : '☆☆☆ (Estruturas Não Salvas)';
+      document.getElementById('victory-score-report').innerHTML = `Pontuação Total da Surtida: <strong style="color:var(--military-green);">${this.score} / ${maxPossibleScore} pts</strong> (${Math.round(efficiency * 100)}% Eficiência | ${savedCount}/${numStages} Salvos)`;
+
+      // Boletim Detalhado por Prédio
+      let reportHtml = `<div style="text-align:left; background:#11151a; border:1px solid #232d36; border-radius:4px; padding:8px 10px; margin-top:8px; font-size:0.75rem; font-family:var(--font-mono);">`;
+      reportHtml += `<div style="color:var(--military-amber); font-weight:bold; margin-bottom:6px; border-bottom:1px solid #232d36; padding-bottom:3px;">📋 BOLETIM DE RESGATE POR EDIFÍCIO:</div>`;
+      
+      this.stageReports.forEach((rep) => {
+        const min = Math.floor(rep.timeSpent / 60);
+        const sec = Math.floor(rep.timeSpent % 60);
+        const timeStr = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+        const icon = rep.isSaved ? (rep.integrityPercent >= 100 ? '🏆' : (rep.integrityPercent >= 60 ? '🟢' : '🟡')) : '🏚️';
+        const statusText = rep.isSaved ? `${rep.integrityPercent}% Integridade` : `<span style="color:#ff6666;">Colapso / Não Salvo</span>`;
+        
+        reportHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px dashed #1a222a; padding-bottom:2px;">
+          <span>${icon} <strong>${rep.stageName}</strong> (⏱️ ${timeStr})</span>
+          <span>${statusText} ➔ <strong style="color:${rep.gained > 0 ? '#4ec95c' : '#888'};">+${rep.gained} pts</strong></span>
+        </div>`;
+      });
+      
+      reportHtml += `</div>`;
+
+      document.getElementById('victory-details-report').innerHTML = `
+        <div>${mission.mission_title || mission.week_title || 'Missão'} concluída! ${savedCount === numStages ? 'Todos os setores assegurados com honras militares!' : `${savedCount} de ${numStages} estruturas salvas a tempo.`}</div>
+        ${reportHtml}
+      `;
 
       document.getElementById('victory-overlay').style.display = 'flex';
     }

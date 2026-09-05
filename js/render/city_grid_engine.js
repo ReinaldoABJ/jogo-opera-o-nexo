@@ -7,7 +7,7 @@
  */
 
 export class CityGridEngine {
-  constructor(cols = 8, rows = 6) {
+  constructor(cols = 6, rows = 4) {
     this.cols = cols;
     this.rows = rows;
     this.cachedGrid = null;
@@ -71,7 +71,7 @@ export class CityGridEngine {
 
   generateLayout(missionId, dailySeed = 42, stages = []) {
     const stageIds = stages.map(s => s.stage_id || s.sector_id || s.sector_name || "").join("-");
-    const key = (missionId || "nexo") + "_" + dailySeed + "_" + stageIds;
+    const key = (missionId || "nexo") + "_" + dailySeed + "_" + stageIds + "_" + this.cols + "x" + this.rows;
     if (this.cachedGrid && this.cachedKey === key) {
       return this.cachedGrid;
     }
@@ -87,22 +87,90 @@ export class CityGridEngine {
       return seedValue / 233280;
     };
 
-    // 1. Mapear nós da missão para células da grade
+    // 1. Mapear nós da missão para células da grade com garantia de unicidade
     const targetCells = new Map();
+    const occupiedCoords = new Set();
+
     stages.forEach((stage, idx) => {
-      const coords = stage.coordinates || { x: 180 + idx * 140, y: 140 + idx * 80 };
+      const coords = stage.coordinates || { x: 140 + idx * 160, y: 120 + idx * 90 };
       const normX = Math.min(0.92, Math.max(0.08, coords.x / 700));
       const normY = Math.min(0.92, Math.max(0.08, coords.y / 520));
-      const cell = this.getGridCell(normX, normY);
-      targetCells.set(cell.col + "," + cell.row, {
+      let cell = this.getGridCell(normX, normY);
+      let cellKey = cell.col + "," + cell.row;
+
+      // Se a célula já estiver ocupada, busca a vizinha livre mais próxima
+      if (occupiedCoords.has(cellKey)) {
+        let found = false;
+        for (let rad = 1; rad < Math.max(this.cols, this.rows); rad++) {
+          for (let dc = -rad; dc <= rad; dc++) {
+            for (let dr = -rad; dr <= rad; dr++) {
+              const nc = Math.min(this.cols - 1, Math.max(0, cell.col + dc));
+              const nr = Math.min(this.rows - 1, Math.max(0, cell.row + dr));
+              const candidateKey = nc + "," + nr;
+              if (!occupiedCoords.has(candidateKey)) {
+                cell = { col: nc, row: nr };
+                cellKey = candidateKey;
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+          if (found) break;
+        }
+      }
+
+      occupiedCoords.add(cellKey);
+      targetCells.set(cellKey, {
         stageIdx: idx,
         stageData: stage
       });
     });
 
-    // 2. Definir centro do distrito financeiro
-    const downtownCol = Math.floor(rand() * 4) + 2;
-    const downtownRow = Math.floor(rand() * 3) + 1;
+    // 2. Sorteio do Mega-Parque 2x2 (No máximo 1 ou nenhuma praça por mapa)
+    let megaParkAnchor = null;
+    const megaParkCells = new Set();
+    const wantsPark = rand() < 0.65; // ~65% de chance de ter 1 parque 2x2
+
+    if (wantsPark) {
+      const validSpots = [];
+      for (let r = 0; r <= this.rows - 2; r++) {
+        for (let c = 0; c <= this.cols - 2; c++) {
+          const k00 = c + "," + r;
+          const k10 = (c + 1) + "," + r;
+          const k01 = c + "," + (r + 1);
+          const k11 = (c + 1) + "," + (r + 1);
+
+          if (!occupiedCoords.has(k00) && !occupiedCoords.has(k10) && !occupiedCoords.has(k01) && !occupiedCoords.has(k11)) {
+            validSpots.push({ col: c, row: r });
+          }
+        }
+      }
+
+      if (validSpots.length > 0) {
+        const chosenSpot = validSpots[Math.floor(rand() * validSpots.length)];
+        const parkIdx = Math.floor(rand() * this.parkSprites.length);
+        const parkSprite = this.parkSprites[parkIdx];
+
+        megaParkAnchor = {
+          col: chosenSpot.col,
+          row: chosenSpot.row,
+          spanCols: 2,
+          spanRows: 2,
+          spriteKey: parkSprite
+        };
+
+        const k00 = chosenSpot.col + "," + chosenSpot.row;
+        const k10 = (chosenSpot.col + 1) + "," + chosenSpot.row;
+        const k01 = chosenSpot.col + "," + (chosenSpot.row + 1);
+        const k11 = (chosenSpot.col + 1) + "," + (chosenSpot.row + 1);
+
+        megaParkCells.add(k00);
+        megaParkCells.add(k10);
+        megaParkCells.add(k01);
+        megaParkCells.add(k11);
+      }
+    }
 
     const grid = [];
     for (let r = 0; r < this.rows; r++) {
@@ -159,6 +227,8 @@ export class CityGridEngine {
             col: c,
             row: r,
             isTarget: true,
+            isMegaPark: false,
+            isMegaParkChild: false,
             stageIdx: target.stageIdx,
             stageData: target.stageData,
             structure: {
@@ -169,113 +239,63 @@ export class CityGridEngine {
               ground: "hero_pavement"
             }
           });
+        } else if (megaParkAnchor && c === megaParkAnchor.col && r === megaParkAnchor.row) {
+          // --- ÂNCORA DO MEGA-PARQUE 2x2 ---
+          grid.push({
+            col: c,
+            row: r,
+            isTarget: false,
+            isMegaPark: true,
+            isMegaParkChild: false,
+            megaParkData: megaParkAnchor,
+            stageIdx: -1,
+            stageData: null,
+            structure: {
+              category: "parks_foliage",
+              type: "urban_mega_park",
+              name: "Grande Praça Cívica",
+              spriteKey: megaParkAnchor.spriteKey,
+              ground: "park"
+            }
+          });
+        } else if (megaParkCells.has(cellKey)) {
+          // --- CÉLULA FILHA DO MEGA-PARQUE 2x2 (Coberta pela âncora) ---
+          grid.push({
+            col: c,
+            row: r,
+            isTarget: false,
+            isMegaPark: false,
+            isMegaParkChild: true,
+            megaParkAnchor: { col: megaParkAnchor.col, row: megaParkAnchor.row },
+            stageIdx: -1,
+            stageData: null,
+            structure: {
+              category: "parks_foliage",
+              type: "urban_mega_park_child",
+              name: "Grande Praça Cívica",
+              spriteKey: megaParkAnchor.spriteKey,
+              ground: "park"
+            }
+          });
         } else {
-          // --- QUARTEIRÃO PROCEDURAL RANDOMIZADO ---
-          const distToDowntown = Math.hypot(c - downtownCol, r - downtownRow);
-          const roll = rand();
-
-          if (distToDowntown < 1.8 && roll < 0.65) {
-            // Centro Financeiro: Arranha-Céus & Torres Altas
-            const skyIdx = Math.floor(rand() * this.skyscraperSprites.length);
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "skyscrapers",
-                type: "skyscraper",
-                name: "Arranha-Céu Metropolitano",
-                spriteKey: this.skyscraperSprites[skyIdx],
-                ground: "pavement"
-              }
-            });
-          } else if (roll < 0.35) {
-            // Bairro Residencial: Casas Suburbanas
-            const resIdx = Math.floor(rand() * this.residentialSprites.length);
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "residential",
-                type: "suburban_house",
-                name: "Residência Urbana",
-                spriteKey: this.residentialSprites[resIdx],
-                ground: "grass"
-              }
-            });
-          } else if (roll < 0.62) {
-            // Setor Comercial / Serviços
-            const commIdx = Math.floor(rand() * this.commercialSprites.length);
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "commercial",
-                type: "commercial_tower",
-                name: "Edifício Comercial",
-                spriteKey: this.commercialSprites[commIdx],
-                ground: "pavement"
-              }
-            });
-          } else if (roll < 0.80) {
-            // Praça Pública / Parque Painterly
-            const parkIdx = Math.floor(rand() * this.parkSprites.length);
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "parks_foliage",
-                type: "urban_park",
-                name: "Praça & Parque Público",
-                spriteKey: this.parkSprites[parkIdx],
-                ground: "park"
-              }
-            });
-          } else if (roll < 0.92) {
-            // Zona Industrial / Infraestrutura
-            const indIdx = Math.floor(rand() * this.industrialSprites.length);
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "industrial",
-                type: "industrial_facility",
-                name: "Instalação Industrial & Apoio",
-                spriteKey: this.industrialSprites[indIdx],
-                ground: "industrial"
-              }
-            });
-          } else {
-            // Estacionamento / Pátio de Apoio
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "infrastructure",
-                type: "parking_lot",
-                name: "Estacionamento & Pátio",
-                spriteKey: null,
-                ground: "parking"
-              }
-            });
-          }
+          // --- DEMAIS QUARTEIRÕES: EXCLUSIVAMENTE CASAS RESIDENCIAIS ---
+          const resIdx = Math.floor(rand() * this.residentialSprites.length);
+          grid.push({
+            col: c,
+            row: r,
+            isTarget: false,
+            isMegaPark: false,
+            isMegaParkChild: false,
+            stageIdx: -1,
+            stageData: null,
+            structure: {
+              category: "residential",
+              type: "suburban_house",
+              name: "Residência Urbana",
+              spriteKey: this.residentialSprites[resIdx],
+              ground: "residential"
+            }
+          });
         }
       }
     }

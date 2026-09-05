@@ -3,20 +3,20 @@
    ========================================================================== */
 
 :root {
-  /* Paleta Militar & Satélite Tático */
-  --bg-military: #111417;
-  --panel-bg: #1c2228;
-  --panel-header: #273038;
-  --panel-border: #384550;
+  /* Paleta Militar & Satélite Tático — Base Monocromática Titânio / Grafite */
+  --bg-military: #0f1215;
+  --panel-bg: #161b20;
+  --panel-header: #1f262d;
+  --panel-border: #2c3640;
   
-  --text-tactical: #e1e7ec;
-  --text-muted: #8b9baa;
+  --text-tactical: #d2dce4;
+  --text-muted: #7d8e9c;
   
   --military-amber: #e5a00d;
   --military-green: #4ec95c;
   --military-danger: #e04b47;
   --military-cyan: #3ca9d6;
-  --military-olive: #4a5c4c;
+  --military-olive: #34414d;
   
   --font-mono: 'Consolas', 'Courier New', monospace;
   --font-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
@@ -86,10 +86,10 @@ body {
 #nexo-command-center {
   width: 100%;
   height: 100%;
-  max-width: 1240px;
+  max-width: 100%;
   max-height: 100%;
   background-color: var(--panel-bg);
-  border: 2px solid var(--panel-border);
+  border: 1px solid var(--panel-border);
   border-radius: var(--border-radius);
   overflow: hidden;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
@@ -101,26 +101,28 @@ body {
 /* Topo do Centro de Comando */
 #command-header {
   background-color: var(--panel-header);
-  border-bottom: 2px solid var(--panel-border);
+  border-bottom: 1px solid var(--panel-border);
   padding: clamp(4px, 0.7vh, 8px) clamp(8px, 1.2vw, 14px);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
-  gap: 8px;
+  gap: 12px;
 }
 
 .header-title {
-  font-size: clamp(0.8rem, 1.2vw, 1rem);
+  font-size: clamp(0.82rem, 1.1vw, 1rem);
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: var(--military-amber);
+  color: #dbe4ec;
   display: flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
 
 .header-telemetry {
@@ -128,6 +130,7 @@ body {
   gap: clamp(6px, 1vw, 12px);
   font-family: var(--font-mono);
   font-size: clamp(0.72rem, 1vw, 0.85rem);
+  flex-shrink: 0;
 }
 
 .telemetry-badge {
@@ -147,17 +150,17 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #151a1e;
+  background-color: #13171b;
   border-bottom: 1px solid var(--panel-border);
   flex-shrink: 0;
 }
 
 .mode-badge-training {
-  color: var(--military-green);
+  color: #8fa0b0;
 }
 
 .mode-badge-ranked {
-  color: var(--military-amber);
+  color: #a4b6c6;
 }
 
 /* Layout Principal: Mapa Satélite (Esquerda) + Console Tático (Direita) */
@@ -166,7 +169,7 @@ body {
   min-height: 0;
   height: 100%;
   display: grid;
-  grid-template-columns: 1fr clamp(310px, 34vw, 390px);
+  grid-template-columns: 1fr clamp(310px, 28vw, 360px);
   position: relative;
   overflow: hidden;
 }
@@ -246,7 +249,7 @@ canvas#satellite-canvas {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: var(--military-amber);
+  color: #9bb0c2;
   border-bottom: 1px solid var(--panel-border);
   padding-bottom: 3px;
 }
@@ -254,9 +257,9 @@ canvas#satellite-canvas {
 .stage-badge-box {
   font-size: 0.78rem;
   letter-spacing: 0.6px;
-  background: rgba(229, 160, 13, 0.14);
-  color: var(--military-amber);
-  border: 1px solid rgba(229, 160, 13, 0.35);
+  background: rgba(140, 160, 180, 0.12);
+  color: #cdd9e4;
+  border: 1px solid #384654;
   padding: 5px 10px;
   border-radius: 4px;
   font-weight: 700;
@@ -265,9 +268,64 @@ canvas#satellite-canvas {
   align-items: center;
 }
 
+.situation-accordion {
+  background: #111518;
+  border: 1px solid #232d36;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  font-size: 0.74rem;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.situation-accordion[open] {
+  border-color: #3d4d5e;
+}
+
+.situation-summary {
+  padding: 4px 8px;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #8c9ca8;
+  font-weight: 600;
+  font-size: 0.72rem;
+  list-style: none;
+  background: #151a20;
+}
+
+.situation-summary::-webkit-details-marker {
+  display: none;
+}
+
+.situation-summary:hover {
+  color: #d2dce4;
+  background: #1c232a;
+}
+
+.situation-chevron {
+  font-size: 0.68rem;
+  transition: transform 0.2s ease;
+}
+
+.situation-accordion[open] .situation-chevron {
+  transform: rotate(180deg);
+}
+
+.situation-content {
+  padding: 6px 8px;
+  border-top: 1px solid #1c242c;
+  color: #d2dbe2;
+  line-height: 1.35;
+  font-size: 0.72rem;
+  background: #0f1317;
+}
+
 .situation-report-box {
   background: #111518;
-  border-left: 3px solid var(--military-amber);
+  border-left: 3px solid #556c82;
   padding: 5px 10px;
   border-radius: 3px;
   font-size: 0.78rem;
@@ -276,30 +334,64 @@ canvas#satellite-canvas {
   line-height: 1.4;
 }
 
+/* Bloco Narrativo do Relatório da Inteligência */
+.sensor-narrative-box {
+  background-color: #12171c;
+  border: 1px solid var(--panel-border);
+  border-left: 3px solid #485c6d;
+  border-radius: var(--border-radius);
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  margin-bottom: 4px;
+}
+
+.sensor-narrative-body {
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: #d2dce4;
+  letter-spacing: 0.2px;
+}
+
 /* Cartões de Sensores Térmicos/Ambientais */
 .sensors-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 5px;
 }
 
 .sensor-box {
-  background-color: #14181c;
+  background-color: #13171b;
   border: 1px solid var(--panel-border);
   border-radius: var(--border-radius);
-  padding: 4px 8px;
-  font-size: 0.76rem;
+  padding: 4px 7px;
+  font-size: 0.72rem;
   font-family: var(--font-mono);
-  letter-spacing: 0.4px;
+  letter-spacing: 0.2px;
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  gap: 4px;
+}
+
+.sensor-box span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.sensor-box strong {
+  flex-shrink: 0;
+  font-size: 0.72rem;
 }
 
 .sensor-box.val-true {
-  border-color: var(--military-green);
-  color: var(--military-green);
+  border-color: #3b5c46;
+  color: #62d470;
 }
 
 .sensor-box.val-false {
@@ -307,28 +399,45 @@ canvas#satellite-canvas {
   color: var(--text-muted);
 }
 
-/* Grade de Abas de Protocolo */
+/* Grade de Abas de Protocolo Minimalistas */
 .proto-tabs-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 6px;
+  display: flex;
+  gap: 4px;
 }
 
 .proto-tab-btn {
-  padding: 5px 8px;
-  font-size: 0.76rem;
+  flex: 1;
+  padding: 3px 6px;
+  font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: left;
+  letter-spacing: 0.3px;
+  text-align: center;
+  border-radius: 3px;
+  background-color: #171d23;
+  border: 1px solid #28333e;
+  color: #8c9ca8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.proto-tab-btn:hover {
+  background-color: #202831;
+  color: #d0dce5;
+  border-color: #3f4f5f;
+}
+
+.proto-tab-btn.is-active {
+  background-color: #24313d;
+  border-color: #556c82;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
 }
 
 /* Construtor de Protocolo Lógico (Slots) */
 .protocol-card {
-  background-color: #15191d;
-  border: 1px solid var(--military-olive);
+  background-color: #13171b;
+  border: 1px solid #26313c;
   border-radius: var(--border-radius);
   padding: clamp(6px, 1vh, 10px);
   display: flex;
@@ -345,7 +454,7 @@ canvas#satellite-canvas {
 
 .formula-display {
   background-color: #0b0d0f;
-  border: 1px solid #2a333c;
+  border: 1px solid #222a32;
   padding: 6px 10px;
   font-family: var(--font-mono);
   font-size: clamp(0.82rem, 0.95vw, 0.9rem);
@@ -360,9 +469,9 @@ canvas#satellite-canvas {
 }
 
 .slot-btn {
-  background-color: #273038;
-  color: var(--military-amber);
-  border: 1px dashed var(--military-amber);
+  background-color: #192027;
+  color: #cdd9e4;
+  border: 1px dashed #546678;
   padding: 2px 7px;
   font-weight: 700;
   font-size: 0.82rem;
@@ -373,14 +482,16 @@ canvas#satellite-canvas {
 }
 
 .slot-btn:hover, .slot-btn:focus-visible {
-  background-color: var(--military-amber);
-  color: #000;
+  background-color: #273442;
+  color: #ffffff;
+  border-color: #8fa0b0;
 }
 
 .slot-btn.is-active {
-  border-color: #ffffff;
-  background-color: #3b4652;
-  box-shadow: 0 0 8px rgba(229, 160, 13, 0.4);
+  border-color: #a4b6c6;
+  border-style: solid;
+  background-color: #2c3a48;
+  box-shadow: 0 0 6px rgba(100, 140, 180, 0.3);
 }
 
 .polarity-btn {

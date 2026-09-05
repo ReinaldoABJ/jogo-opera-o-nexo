@@ -1060,7 +1060,7 @@ class SpriteBank {
  */
 
 class CityGridEngine {
-  constructor(cols = 8, rows = 6) {
+  constructor(cols = 6, rows = 4) {
     this.cols = cols;
     this.rows = rows;
     this.cachedGrid = null;
@@ -1124,7 +1124,7 @@ class CityGridEngine {
 
   generateLayout(missionId, dailySeed = 42, stages = []) {
     const stageIds = stages.map(s => s.stage_id || s.sector_id || s.sector_name || "").join("-");
-    const key = (missionId || "nexo") + "_" + dailySeed + "_" + stageIds;
+    const key = (missionId || "nexo") + "_" + dailySeed + "_" + stageIds + "_" + this.cols + "x" + this.rows;
     if (this.cachedGrid && this.cachedKey === key) {
       return this.cachedGrid;
     }
@@ -1140,22 +1140,90 @@ class CityGridEngine {
       return seedValue / 233280;
     };
 
-    // 1. Mapear nós da missão para células da grade
+    // 1. Mapear nós da missão para células da grade com garantia de unicidade
     const targetCells = new Map();
+    const occupiedCoords = new Set();
+
     stages.forEach((stage, idx) => {
-      const coords = stage.coordinates || { x: 180 + idx * 140, y: 140 + idx * 80 };
+      const coords = stage.coordinates || { x: 140 + idx * 160, y: 120 + idx * 90 };
       const normX = Math.min(0.92, Math.max(0.08, coords.x / 700));
       const normY = Math.min(0.92, Math.max(0.08, coords.y / 520));
-      const cell = this.getGridCell(normX, normY);
-      targetCells.set(cell.col + "," + cell.row, {
+      let cell = this.getGridCell(normX, normY);
+      let cellKey = cell.col + "," + cell.row;
+
+      // Se a célula já estiver ocupada, busca a vizinha livre mais próxima
+      if (occupiedCoords.has(cellKey)) {
+        let found = false;
+        for (let rad = 1; rad < Math.max(this.cols, this.rows); rad++) {
+          for (let dc = -rad; dc <= rad; dc++) {
+            for (let dr = -rad; dr <= rad; dr++) {
+              const nc = Math.min(this.cols - 1, Math.max(0, cell.col + dc));
+              const nr = Math.min(this.rows - 1, Math.max(0, cell.row + dr));
+              const candidateKey = nc + "," + nr;
+              if (!occupiedCoords.has(candidateKey)) {
+                cell = { col: nc, row: nr };
+                cellKey = candidateKey;
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+          if (found) break;
+        }
+      }
+
+      occupiedCoords.add(cellKey);
+      targetCells.set(cellKey, {
         stageIdx: idx,
         stageData: stage
       });
     });
 
-    // 2. Definir centro do distrito financeiro
-    const downtownCol = Math.floor(rand() * 4) + 2;
-    const downtownRow = Math.floor(rand() * 3) + 1;
+    // 2. Sorteio do Mega-Parque 2x2 (No máximo 1 ou nenhuma praça por mapa)
+    let megaParkAnchor = null;
+    const megaParkCells = new Set();
+    const wantsPark = rand() < 0.65; // ~65% de chance de ter 1 parque 2x2
+
+    if (wantsPark) {
+      const validSpots = [];
+      for (let r = 0; r <= this.rows - 2; r++) {
+        for (let c = 0; c <= this.cols - 2; c++) {
+          const k00 = c + "," + r;
+          const k10 = (c + 1) + "," + r;
+          const k01 = c + "," + (r + 1);
+          const k11 = (c + 1) + "," + (r + 1);
+
+          if (!occupiedCoords.has(k00) && !occupiedCoords.has(k10) && !occupiedCoords.has(k01) && !occupiedCoords.has(k11)) {
+            validSpots.push({ col: c, row: r });
+          }
+        }
+      }
+
+      if (validSpots.length > 0) {
+        const chosenSpot = validSpots[Math.floor(rand() * validSpots.length)];
+        const parkIdx = Math.floor(rand() * this.parkSprites.length);
+        const parkSprite = this.parkSprites[parkIdx];
+
+        megaParkAnchor = {
+          col: chosenSpot.col,
+          row: chosenSpot.row,
+          spanCols: 2,
+          spanRows: 2,
+          spriteKey: parkSprite
+        };
+
+        const k00 = chosenSpot.col + "," + chosenSpot.row;
+        const k10 = (chosenSpot.col + 1) + "," + chosenSpot.row;
+        const k01 = chosenSpot.col + "," + (chosenSpot.row + 1);
+        const k11 = (chosenSpot.col + 1) + "," + (chosenSpot.row + 1);
+
+        megaParkCells.add(k00);
+        megaParkCells.add(k10);
+        megaParkCells.add(k01);
+        megaParkCells.add(k11);
+      }
+    }
 
     const grid = [];
     for (let r = 0; r < this.rows; r++) {
@@ -1212,6 +1280,8 @@ class CityGridEngine {
             col: c,
             row: r,
             isTarget: true,
+            isMegaPark: false,
+            isMegaParkChild: false,
             stageIdx: target.stageIdx,
             stageData: target.stageData,
             structure: {
@@ -1222,113 +1292,63 @@ class CityGridEngine {
               ground: "hero_pavement"
             }
           });
+        } else if (megaParkAnchor && c === megaParkAnchor.col && r === megaParkAnchor.row) {
+          // --- ÂNCORA DO MEGA-PARQUE 2x2 ---
+          grid.push({
+            col: c,
+            row: r,
+            isTarget: false,
+            isMegaPark: true,
+            isMegaParkChild: false,
+            megaParkData: megaParkAnchor,
+            stageIdx: -1,
+            stageData: null,
+            structure: {
+              category: "parks_foliage",
+              type: "urban_mega_park",
+              name: "Grande Praça Cívica",
+              spriteKey: megaParkAnchor.spriteKey,
+              ground: "park"
+            }
+          });
+        } else if (megaParkCells.has(cellKey)) {
+          // --- CÉLULA FILHA DO MEGA-PARQUE 2x2 (Coberta pela âncora) ---
+          grid.push({
+            col: c,
+            row: r,
+            isTarget: false,
+            isMegaPark: false,
+            isMegaParkChild: true,
+            megaParkAnchor: { col: megaParkAnchor.col, row: megaParkAnchor.row },
+            stageIdx: -1,
+            stageData: null,
+            structure: {
+              category: "parks_foliage",
+              type: "urban_mega_park_child",
+              name: "Grande Praça Cívica",
+              spriteKey: megaParkAnchor.spriteKey,
+              ground: "park"
+            }
+          });
         } else {
-          // --- QUARTEIRÃO PROCEDURAL RANDOMIZADO ---
-          const distToDowntown = Math.hypot(c - downtownCol, r - downtownRow);
-          const roll = rand();
-
-          if (distToDowntown < 1.8 && roll < 0.65) {
-            // Centro Financeiro: Arranha-Céus & Torres Altas
-            const skyIdx = Math.floor(rand() * this.skyscraperSprites.length);
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "skyscrapers",
-                type: "skyscraper",
-                name: "Arranha-Céu Metropolitano",
-                spriteKey: this.skyscraperSprites[skyIdx],
-                ground: "pavement"
-              }
-            });
-          } else if (roll < 0.35) {
-            // Bairro Residencial: Casas Suburbanas
-            const resIdx = Math.floor(rand() * this.residentialSprites.length);
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "residential",
-                type: "suburban_house",
-                name: "Residência Urbana",
-                spriteKey: this.residentialSprites[resIdx],
-                ground: "grass"
-              }
-            });
-          } else if (roll < 0.62) {
-            // Setor Comercial / Serviços
-            const commIdx = Math.floor(rand() * this.commercialSprites.length);
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "commercial",
-                type: "commercial_tower",
-                name: "Edifício Comercial",
-                spriteKey: this.commercialSprites[commIdx],
-                ground: "pavement"
-              }
-            });
-          } else if (roll < 0.80) {
-            // Praça Pública / Parque Painterly
-            const parkIdx = Math.floor(rand() * this.parkSprites.length);
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "parks_foliage",
-                type: "urban_park",
-                name: "Praça & Parque Público",
-                spriteKey: this.parkSprites[parkIdx],
-                ground: "park"
-              }
-            });
-          } else if (roll < 0.92) {
-            // Zona Industrial / Infraestrutura
-            const indIdx = Math.floor(rand() * this.industrialSprites.length);
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "industrial",
-                type: "industrial_facility",
-                name: "Instalação Industrial & Apoio",
-                spriteKey: this.industrialSprites[indIdx],
-                ground: "industrial"
-              }
-            });
-          } else {
-            // Estacionamento / Pátio de Apoio
-            grid.push({
-              col: c,
-              row: r,
-              isTarget: false,
-              stageIdx: -1,
-              stageData: null,
-              structure: {
-                category: "infrastructure",
-                type: "parking_lot",
-                name: "Estacionamento & Pátio",
-                spriteKey: null,
-                ground: "parking"
-              }
-            });
-          }
+          // --- DEMAIS QUARTEIRÕES: EXCLUSIVAMENTE CASAS RESIDENCIAIS ---
+          const resIdx = Math.floor(rand() * this.residentialSprites.length);
+          grid.push({
+            col: c,
+            row: r,
+            isTarget: false,
+            isMegaPark: false,
+            isMegaParkChild: false,
+            stageIdx: -1,
+            stageData: null,
+            structure: {
+              category: "residential",
+              type: "suburban_house",
+              name: "Residência Urbana",
+              spriteKey: this.residentialSprites[resIdx],
+              ground: "residential"
+            }
+          });
         }
       }
     }
@@ -1346,7 +1366,7 @@ class MapRenderer {
     this.ctx = canvas.getContext("2d");
     this.rotorAngle = 0;
     this.bank = spriteBank || new SpriteBank();
-    this.gridEngine = new CityGridEngine(8, 6);
+    this.gridEngine = new CityGridEngine(6, 4);
 
     this.smoke = [];
     for (let i = 0; i < 28; i++) {
@@ -1414,7 +1434,30 @@ class MapRenderer {
     return { x: center.x, y: center.y, cell };
   }
 
-  render(drone, sector, waypoint, threatRatio = 0, currentMission = null, activeStageIdx = 0) {
+  getStageAtPosition(x, y, stages, width, height) {
+    if (!stages || stages.length === 0) return -1;
+    const w = width || this.canvas.width || 700;
+    const h = height || this.canvas.height || 520;
+    const cellW = w / this.gridEngine.cols;
+    const cellH = h / this.gridEngine.rows;
+
+    for (let i = 0; i < stages.length; i++) {
+      const pos = this.getSectorScreenPosition(stages[i], stages, w, h);
+      if (pos && pos.cell) {
+        const x0 = pos.cell.col * cellW;
+        const x1 = (pos.cell.col + 1) * cellW;
+        const y0 = pos.cell.row * cellH;
+        const y1 = (pos.cell.row + 1) * cellH;
+
+        if (x >= x0 && x <= x1 && y >= y0 && y <= y1) {
+          return i;
+        }
+      }
+    }
+    return -1;
+  }
+
+  render(drone, sector, waypoint, threatRatio = 0, currentMission = null, activeStageIdx = 0, resolvedStages = new Set(), stageReports = []) {
     const ctx = this.ctx;
     const w = this.canvas.width || 700;
     const h = this.canvas.height || 520;
@@ -1441,147 +1484,286 @@ class MapRenderer {
       ctx.fillRect(0, 0, w, h);
     }
 
-    // 2. Camada 1: Grade Urbana Completa (48 Quarteirões Procedurais)
-    const stages = (currentMission && currentMission.stages) ? currentMission.stages : (sector ? [sector] : []);
+    // 2. Camada 1: Malha Urbana Realista (Ruas, Calçadas e Quarteirões Procedurais)
+    const fallbackStages = (window.LEVELS_DATA && window.LEVELS_DATA.temporadas && window.LEVELS_DATA.temporadas[0] && window.LEVELS_DATA.temporadas[0].weeks[0]) ? window.LEVELS_DATA.temporadas[0].weeks[0].stages : [];
+    const stages = (currentMission && currentMission.stages && currentMission.stages.length > 0) ? currentMission.stages : (sector ? [sector] : fallbackStages);
     const missionId = currentMission ? (currentMission.id || currentMission.title) : "nexo_default";
     const gridLayout = this.gridEngine.generateLayout(missionId, 42, stages);
 
-    const cellW = w / this.gridEngine.cols;
-    const cellH = h / this.gridEngine.rows;
+    const cols = this.gridEngine.cols;
+    const rows = this.gridEngine.rows;
+    const cellW = w / cols;
+    const cellH = h / rows;
+    const roadWidth = Math.max(12, Math.round(cellW * 0.16));
+    const roadHalf = roadWidth * 0.5;
 
-    // 2.1 Malha Viária (Ruas e Avenidas entre quarteirões)
+    // 2.1 Pavimentação de Asfalto (Malha Viária Contínua)
     ctx.save();
-    ctx.fillStyle = "rgba(22, 28, 34, 0.75)";
-    for (let r = 0; r <= this.gridEngine.rows; r++) {
+    ctx.fillStyle = "#181d22"; // Asfalto escuro
+    for (let r = 0; r <= rows; r++) {
       const y = r * cellH;
-      ctx.fillRect(0, y - 4, w, 8);
+      ctx.fillRect(0, y - roadHalf, w, roadWidth);
     }
-    for (let c = 0; c <= this.gridEngine.cols; c++) {
+    for (let c = 0; c <= cols; c++) {
       const x = c * cellW;
-      ctx.fillRect(x - 4, 0, 8, h);
+      ctx.fillRect(x - roadHalf, 0, roadWidth, h);
     }
-    ctx.strokeStyle = "rgba(229, 160, 13, 0.2)";
-    ctx.lineWidth = 0.8;
+
+    // 2.2 Pintura de Faixas de Trânsito (Linhas Centrais nas Ruas)
+    ctx.strokeStyle = "rgba(220, 226, 235, 0.4)";
+    ctx.lineWidth = 1;
     ctx.setLineDash([4, 6]);
-    for (let r = 0; r < this.gridEngine.rows; r++) {
-      const y = (r + 0.5) * cellH;
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+
+    // Linhas horizontais nas ruas (entre quarteirões)
+    for (let r = 0; r <= rows; r++) {
+      const y = r * cellH;
+      for (let c = 0; c < cols; c++) {
+        const xStart = c * cellW + roadHalf + 4;
+        const xEnd = (c + 1) * cellW - roadHalf - 4;
+        if (xEnd > xStart) {
+          ctx.beginPath();
+          ctx.moveTo(xStart, y);
+          ctx.lineTo(xEnd, y);
+          ctx.stroke();
+        }
+      }
     }
-    for (let c = 0; c < this.gridEngine.cols; c++) {
-      const x = (c + 0.5) * cellW;
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+
+    // Linhas verticais nas ruas (entre quarteirões)
+    for (let c = 0; c <= cols; c++) {
+      const x = c * cellW;
+      for (let r = 0; r < rows; r++) {
+        const yStart = r * cellH + roadHalf + 4;
+        const yEnd = (r + 1) * cellH - roadHalf - 4;
+        if (yEnd > yStart) {
+          ctx.beginPath();
+          ctx.moveTo(x, yStart);
+          ctx.lineTo(x, yEnd);
+          ctx.stroke();
+        }
+      }
     }
     ctx.setLineDash([]);
+
+    // 2.3 Faixas de Pedestres nas Esquinas dos Cruzamentos
+    ctx.fillStyle = "rgba(235, 240, 245, 0.35)";
+    for (let c = 0; c <= cols; c++) {
+      for (let r = 0; r <= rows; r++) {
+        const cx = c * cellW;
+        const cy = r * cellH;
+        // Faixas norte/sul
+        if (r > 0 && r < rows) {
+          ctx.fillRect(cx - roadHalf + 2, cy - roadHalf - 3, roadWidth - 4, 2);
+          ctx.fillRect(cx - roadHalf + 2, cy + roadHalf + 1, roadWidth - 4, 2);
+        }
+        // Faixas leste/oeste
+        if (c > 0 && c < cols) {
+          ctx.fillRect(cx - roadHalf - 3, cy - roadHalf + 2, 2, roadWidth - 4);
+          ctx.fillRect(cx + roadHalf + 1, cy - roadHalf + 2, 2, roadWidth - 4);
+        }
+      }
+    }
     ctx.restore();
 
-    // 2.2 Renderização dos 48 Quarteirões & Edificações do Banco de Sprites
+    // 2.4 Renderização dos Quarteirões, Praças & Edificações
     gridLayout.forEach(cell => {
-      const marginX = cellW * 0.08;
-      const marginY = cellH * 0.08;
-      const bx = cell.col * cellW + marginX;
-      const by = cell.row * cellH + marginY;
-      const bw = cellW - marginX * 2;
-      const bh = cellH - marginY * 2;
+      // Se for célula filha do mega-parque 2x2, a âncora já cuidou de renderizar o superbloco
+      if (cell.isMegaParkChild) {
+        return;
+      }
+
+      if (cell.isMegaPark) {
+        // --- GRANDE PRAÇA / MEGA-PARQUE 2x2 ---
+        const blockX = cell.col * cellW + roadHalf;
+        const blockY = cell.row * cellH + roadHalf;
+        const blockW = cellW * 2 - roadWidth;
+        const blockH = cellH * 2 - roadWidth;
+
+        // Calçada de concreto contornando a mega-praça
+        ctx.fillStyle = "#333d47";
+        ctx.fillRect(blockX, blockY, blockW, blockH);
+        ctx.strokeStyle = "#465360";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(blockX, blockY, blockW, blockH);
+
+        const curbSize = 2;
+        const bx = blockX + curbSize;
+        const by = blockY + curbSize;
+        const bw = blockW - curbSize * 2;
+        const bh = blockH - curbSize * 2;
+
+        // Base vetorial rica do parque (garantia imediata)
+        ctx.fillStyle = "#224c2d";
+        ctx.fillRect(bx, by, bw, bh);
+
+        // Caminhos de pedestres internos
+        ctx.fillStyle = "#3a4d3f";
+        ctx.fillRect(bx + bw * 0.44, by, bw * 0.12, bh);
+        ctx.fillRect(bx, by + bh * 0.44, bw, bh * 0.12);
+
+        // Fonte / Lago central
+        ctx.fillStyle = "#2b6b85";
+        ctx.beginPath();
+        ctx.arc(bx + bw * 0.5, by + bh * 0.5, Math.min(bw, bh) * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#458da8";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Árvores nas 4 esquinas do parque
+        ctx.fillStyle = "#173820";
+        ctx.beginPath();
+        ctx.arc(bx + bw * 0.22, by + bh * 0.22, Math.min(bw, bh) * 0.12, 0, Math.PI * 2);
+        ctx.arc(bx + bw * 0.78, by + bh * 0.22, Math.min(bw, bh) * 0.12, 0, Math.PI * 2);
+        ctx.arc(bx + bw * 0.22, by + bh * 0.78, Math.min(bw, bh) * 0.12, 0, Math.PI * 2);
+        ctx.arc(bx + bw * 0.78, by + bh * 0.78, Math.min(bw, bh) * 0.12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sobreposição da textura HD se disponível
+        const parkImg = this.bank.get(cell.structure.spriteKey);
+        if (parkImg && parkImg.naturalWidth > 0) {
+          ctx.drawImage(parkImg, bx, by, bw, bh);
+        }
+        return;
+      }
+
+      // Coordenadas do lote dentro do quarteirão delimitado pelas ruas
+      const blockX = cell.col * cellW + roadHalf;
+      const blockY = cell.row * cellH + roadHalf;
+      const blockW = cellW - roadWidth;
+      const blockH = cellH - roadWidth;
+
+      // Calçada de concreto contornando o quarteirão
+      ctx.fillStyle = "#333d47";
+      ctx.fillRect(blockX, blockY, blockW, blockH);
+
+      // Meio-fio de borda
+      ctx.strokeStyle = "#465360";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(blockX, blockY, blockW, blockH);
+
+      // Lote interno (terreno privativo)
+      const curbSize = 2;
+      const bx = blockX + curbSize;
+      const by = blockY + curbSize;
+      const bw = blockW - curbSize * 2;
+      const bh = blockH - curbSize * 2;
 
       if (cell.isTarget) {
         // --- ALVO HERO DA MISSÃO ---
-        ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
-        ctx.fillRect(bx + 4, by + 4, bw, bh);
+        const isResolved = resolvedStages && (resolvedStages.has(cell.stageIdx) || (cell.stageData && resolvedStages.has(cell.stageData.stage_id)));
+        const isActive = (cell.stageIdx === activeStageIdx) && !isResolved;
+
+        // Base vetorial do alvo (garantia imediata)
+        ctx.fillStyle = isResolved ? "#183020" : (isActive ? "#182635" : "#222c36");
+        ctx.fillRect(bx, by, bw, bh);
+
+        // Estrutura predial estilizada
+        ctx.fillStyle = isResolved ? "#264a32" : (isActive ? "#2a3d52" : "#323e4b");
+        ctx.fillRect(bx + 4, by + 4, bw - 8, bh - 8);
+
+        // Marcação do heliponto / pátio operacional
+        ctx.strokeStyle = isResolved ? "#4ec95c" : (isActive ? "#64b5f6" : "#e5a00d");
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(bx + bw * 0.5, by + bh * 0.5, Math.min(bw, bh) * 0.22, 0, Math.PI * 2);
+        ctx.stroke();
 
         const sKey = cell.structure.spriteKey;
         const heroImg = this.bank.get(sKey);
         if (heroImg && heroImg.naturalWidth > 0) {
           ctx.drawImage(heroImg, bx, by, bw, bh);
-        } else {
-          ctx.fillStyle = "rgba(42, 54, 65, 0.95)";
-          ctx.fillRect(bx, by, bw, bh);
         }
 
-        // Moldura Tática de Reconhecimento
-        const isActive = cell.stageIdx === activeStageIdx;
-        ctx.strokeStyle = isActive ? "#e5a00d" : "rgba(229, 160, 13, 0.6)";
-        ctx.lineWidth = isActive ? 3 : 2;
-        ctx.strokeRect(bx, by, bw, bh);
-
-        // Tag de Identificação [A], [B]
-        ctx.fillStyle = "rgba(17, 20, 23, 0.94)";
-        ctx.fillRect(bx + 2, by + 2, 28, 16);
-        ctx.strokeStyle = "#e5a00d";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(bx + 2, by + 2, 28, 16);
-        ctx.fillStyle = "#e5a00d";
-        ctx.font = "bold 10px monospace";
         const stageChar = String.fromCharCode(65 + Math.max(0, cell.stageIdx));
-        ctx.fillText("[" + stageChar + "]", bx + 6, by + 14);
+        const stageReport = (stageReports || []).find(r => r.stageIdx === cell.stageIdx);
+        const wasSaved = stageReport ? stageReport.isSaved : true;
+
+        const badgeW = isResolved ? 60 : (isActive ? 64 : 52);
+        const badgeH = 24;
+        const badgeX = bx + 4;
+        const badgeY = by + 4;
+
+        if (isResolved) {
+          if (wasSaved) {
+            // Estado: Pacificado / Salvo (Verde Militar)
+            ctx.strokeStyle = "#4ec95c";
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(bx, by, bw, bh);
+
+            ctx.fillStyle = "rgba(12, 30, 18, 0.95)";
+            ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+            ctx.strokeStyle = "#4ec95c";
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+            ctx.fillStyle = "#4ec95c";
+            ctx.font = "bold 13.5px monospace";
+            ctx.fillText("[" + stageChar + "] ✓", badgeX + 6, badgeY + 17);
+          } else {
+            // Estado: Concluído com Colapso / Não Salvo (Vermelho Alerta)
+            ctx.strokeStyle = "#d9534f";
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(bx, by, bw, bh);
+
+            ctx.fillStyle = "rgba(35, 14, 14, 0.95)";
+            ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+            ctx.strokeStyle = "#d9534f";
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+            ctx.fillStyle = "#ff7777";
+            ctx.font = "bold 13.5px monospace";
+            ctx.fillText("[" + stageChar + "] 🏚️", badgeX + 5, badgeY + 17);
+          }
+        } else if (isActive) {
+          // Estado: Ativo / Selecionado (Destaque Tático com Foco Azul/Cyan Sóbrio)
+          ctx.strokeStyle = "#4a90e2";
+          ctx.lineWidth = 3;
+          ctx.strokeRect(bx, by, bw, bh);
+
+          ctx.fillStyle = "rgba(16, 26, 38, 0.96)";
+          ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+          ctx.strokeStyle = "#64b5f6";
+          ctx.lineWidth = 1.8;
+          ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+          ctx.fillStyle = "#e3f2fd";
+          ctx.font = "bold 14px monospace";
+          ctx.fillText("[" + stageChar + "] 🎯", badgeX + 6, badgeY + 17);
+        } else {
+          // Estado: Pendente / Próximo Alvo
+          ctx.strokeStyle = "rgba(140, 165, 190, 0.6)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(bx, by, bw, bh);
+
+          ctx.fillStyle = "rgba(16, 21, 26, 0.94)";
+          ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+          ctx.strokeStyle = "rgba(160, 185, 210, 0.7)";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+          ctx.fillStyle = "#d2dce5";
+          ctx.font = "bold 14px monospace";
+          ctx.fillText("[ " + stageChar + " ]", badgeX + 6, badgeY + 17);
+        }
 
       } else {
-        // --- QUARTEIRÃO PROCEDURAL DA CIDADE ---
+        // --- QUARTEIRÃO RESIDENCIAL PROCEDURAL ---
         const struct = cell.structure || {};
+        
+        // Base vetorial instantânea (grama do lote + telhado da casa)
+        ctx.fillStyle = "#1e2820";
+        ctx.fillRect(bx, by, bw, bh);
 
-        if (struct.ground === "grass") {
-          // Lote Residencial (Grama)
-          ctx.fillStyle = "rgba(38, 56, 42, 0.55)";
-          ctx.fillRect(bx, by, bw, bh);
-        } else if (struct.ground === "park") {
-          // Praça Pública com Árvores
-          ctx.fillStyle = "rgba(32, 60, 36, 0.7)";
-          ctx.fillRect(bx, by, bw, bh);
-          ctx.strokeStyle = "rgba(78, 201, 92, 0.35)";
-          ctx.lineWidth = 1;
-          ctx.strokeRect(bx, by, bw, bh);
+        // Telhado estilizado com relevo e cor quente/ardósia
+        ctx.fillStyle = "#5c3d2e";
+        ctx.fillRect(bx + 4, by + 4, bw - 8, bh - 8);
+        ctx.strokeStyle = "#7a523e";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bx + 4, by + 4, bw - 8, bh - 8);
 
-          if (!struct.spriteKey) {
-            const treeImg = this.bank.get("sub_tree-large.png") || this.bank.get("tree_large.png");
-            if (treeImg && treeImg.naturalWidth > 0) {
-              const tSize = Math.min(bw, bh) * 0.42;
-              ctx.drawImage(treeImg, bx + bw * 0.12, by + bh * 0.22, tSize, tSize);
-              ctx.drawImage(treeImg, bx + bw * 0.52, by + bh * 0.32, tSize, tSize);
-            }
-          }
-        } else if (struct.ground === "industrial") {
-          // Zona Industrial & Infraestrutura Crítica
-          ctx.fillStyle = "rgba(40, 36, 32, 0.65)";
-          ctx.fillRect(bx, by, bw, bh);
-          ctx.strokeStyle = "rgba(229, 160, 13, 0.25)";
-          ctx.lineWidth = 1;
-          ctx.strokeRect(bx, by, bw, bh);
-        } else if (struct.ground === "parking") {
-          // Estacionamento com Demarcação de Vagas
-          ctx.fillStyle = "rgba(28, 34, 40, 0.7)";
-          ctx.fillRect(bx, by, bw, bh);
-          ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
-          ctx.lineWidth = 0.8;
-          const slotStep = bw / 4;
-          for (let v = slotStep; v < bw; v += slotStep) {
-            ctx.beginPath(); ctx.moveTo(bx + v, by + 2); ctx.lineTo(bx + v, by + bh - 2); ctx.stroke();
-          }
-        } else {
-          // Pavimento Comercial / Pátio
-          ctx.fillStyle = "rgba(34, 40, 48, 0.55)";
-          ctx.fillRect(bx, by, bw, bh);
-        }
-
-        // Desenhar Sprite do Edifício / Casa sorteado do Banco
+        // Textura HD sobreposta quando carregada
         if (struct.spriteKey) {
           const bImg = this.bank.get(struct.spriteKey);
           if (bImg && bImg.naturalWidth > 0) {
-            const imgAspect = bImg.naturalWidth / bImg.naturalHeight;
-            let drawW = bw * 0.84;
-            let drawH = bh * 0.84;
-            if (imgAspect > 1) {
-              drawH = drawW / imgAspect;
-            } else {
-              drawW = drawH * imgAspect;
-            }
-            const drawX = bx + (bw - drawW) / 2;
-            const drawY = by + (bh - drawH) / 2;
-
-            // Sombra projetada
-            ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
-            ctx.fillRect(drawX + 3, drawY + 3, drawW, drawH);
-
-            // Sprite top-down
-            ctx.drawImage(bImg, drawX, drawY, drawW, drawH);
+            ctx.drawImage(bImg, bx, by, bw, bh);
           }
         }
       }
@@ -1589,67 +1771,88 @@ class MapRenderer {
 
     // 3. Corredor Tático de Voo da Missão
     if (currentMission && currentMission.stages && currentMission.stages.length > 1) {
-      this.drawFlightCorridor(ctx, currentMission, activeStageIdx, w, h);
+      this.drawFlightCorridor(ctx, currentMission, activeStageIdx, w, h, resolvedStages);
     }
 
     // 4. Efeitos Dinâmicos de Emergência (Fumaça, Chamas e Gás)
     if (sector) {
+      const isSectorResolved = resolvedStages && (resolvedStages.has(activeStageIdx) || (sector.stage_id && resolvedStages.has(sector.stage_id)));
       const targetPos = this.getSectorScreenPosition(sector, stages, w, h);
       const sx = targetPos.x;
       const sy = targetPos.y;
-      const spreadFactor = 1 + threatRatio * 1.5;
-      const isGas = sector.sensors && sector.sensors.GAS_TOXICO;
-      const isFire = sector.sensors && sector.sensors.FOGO_ATIVO !== false;
 
-      this.smoke.forEach(p => {
-        p.y -= p.sp * (1 + threatRatio * 0.8);
-        if (p.y < sy - 50 * spreadFactor) {
-          p.y = sy + (Math.random() * 20 - 10);
-          p.x = sx + (Math.random() * 32 - 16) * spreadFactor;
+      if (!isSectorResolved) {
+        const spreadFactor = 1 + threatRatio * 1.5;
+        const isGas = sector.sensors && sector.sensors.GAS_TOXICO;
+        const isFire = sector.sensors && sector.sensors.FOGO_ATIVO !== false;
+
+        this.smoke.forEach(p => {
+          p.y -= p.sp * (1 + threatRatio * 0.8);
+          if (p.y < sy - 50 * spreadFactor) {
+            p.y = sy + (Math.random() * 20 - 10);
+            p.x = sx + (Math.random() * 32 - 16) * spreadFactor;
+          }
+
+          if (isFire) {
+            ctx.fillStyle = "rgba(" + (190 + Math.floor(threatRatio * 65)) + ", " + (70 - Math.floor(threatRatio * 35)) + ", 25, " + (p.a * (0.35 + threatRatio * 0.4)) + ")";
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + threatRatio * 0.6), 0, Math.PI * 2); ctx.fill();
+          }
+
+          if (isGas) {
+            ctx.fillStyle = "rgba(100, 190, 45, " + (p.a * (0.3 + threatRatio * 0.35)) + ")";
+            ctx.beginPath(); ctx.arc(p.x - 6, p.y + 4, p.r * (1.1 + threatRatio * 0.5), 0, Math.PI * 2); ctx.fill();
+          }
+
+          ctx.fillStyle = "rgba(35, 40, 45, " + (p.a * (0.5 + threatRatio * 0.3)) + ")";
+          ctx.beginPath(); ctx.arc(p.x + 4, p.y - 6, p.r * 1.3 * (1 + threatRatio * 0.4), 0, Math.PI * 2); ctx.fill();
+        });
+
+        const baseRadius = Math.min(cellW, cellH) * 0.4;
+        const expandRadius = baseRadius + threatRatio * 28;
+        const pulse = Math.sin(Date.now() / 180) * (2 + threatRatio * 4);
+
+        let perimeterColor = "#4ec95c";
+        let label = "SETOR ATIVO (EMERGÊNCIA)";
+        if (threatRatio > 0.7) {
+          perimeterColor = "#ff3333";
+          label = "🚨 COLAPSO IMINENTE!";
+        } else if (threatRatio > 0.35) {
+          perimeterColor = "#e5a00d";
+          label = "⚠️ RISCO ELEVADO";
         }
 
-        if (isFire) {
-          ctx.fillStyle = "rgba(" + (190 + Math.floor(threatRatio * 65)) + ", " + (70 - Math.floor(threatRatio * 35)) + ", 25, " + (p.a * (0.35 + threatRatio * 0.4)) + ")";
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + threatRatio * 0.6), 0, Math.PI * 2); ctx.fill();
-        }
+        ctx.strokeStyle = perimeterColor;
+        ctx.lineWidth = threatRatio > 0.7 ? 3 : 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, expandRadius + pulse, 0, Math.PI * 2);
+        ctx.stroke();
 
-        if (isGas) {
-          ctx.fillStyle = "rgba(100, 190, 45, " + (p.a * (0.3 + threatRatio * 0.35)) + ")";
-          ctx.beginPath(); ctx.arc(p.x - 6, p.y + 4, p.r * (1.1 + threatRatio * 0.5), 0, Math.PI * 2); ctx.fill();
-        }
+        ctx.fillStyle = threatRatio > 0.7 ? "rgba(255, 51, 51, 0.22)" : "rgba(224, 75, 71, 0.15)";
+        ctx.beginPath();
+        ctx.arc(sx, sy, expandRadius + pulse, 0, Math.PI * 2);
+        ctx.fill();
 
-        ctx.fillStyle = "rgba(35, 40, 45, " + (p.a * (0.5 + threatRatio * 0.3)) + ")";
-        ctx.beginPath(); ctx.arc(p.x + 4, p.y - 6, p.r * 1.3 * (1 + threatRatio * 0.4), 0, Math.PI * 2); ctx.fill();
-      });
+        ctx.fillStyle = perimeterColor;
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText(label, sx - 50, sy - expandRadius - 8);
+      } else {
+        // Setor Seguro: Aura verde calma
+        const baseRadius = Math.min(cellW, cellH) * 0.36;
+        ctx.strokeStyle = "rgba(78, 201, 92, 0.6)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(sx, sy, baseRadius, 0, Math.PI * 2);
+        ctx.stroke();
 
-      const baseRadius = Math.min(cellW, cellH) * 0.4;
-      const expandRadius = baseRadius + threatRatio * 28;
-      const pulse = Math.sin(Date.now() / 180) * (2 + threatRatio * 4);
+        ctx.fillStyle = "rgba(78, 201, 92, 0.12)";
+        ctx.beginPath();
+        ctx.arc(sx, sy, baseRadius, 0, Math.PI * 2);
+        ctx.fill();
 
-      let perimeterColor = "#4ec95c";
-      let label = "SETOR ATIVO (EMERGÊNCIA)";
-      if (threatRatio > 0.7) {
-        perimeterColor = "#ff3333";
-        label = "🚨 COLAPSO IMINENTE!";
-      } else if (threatRatio > 0.35) {
-        perimeterColor = "#e5a00d";
-        label = "⚠️ RISCO ELEVADO";
+        ctx.fillStyle = "#4ec95c";
+        ctx.font = "bold 10px sans-serif";
+        ctx.fillText("✅ SETOR SEGURO", sx - 42, sy - baseRadius - 6);
       }
-
-      ctx.strokeStyle = perimeterColor;
-      ctx.lineWidth = threatRatio > 0.7 ? 3 : 2;
-      ctx.beginPath();
-      ctx.arc(sx, sy, expandRadius + pulse, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.fillStyle = threatRatio > 0.7 ? "rgba(255, 51, 51, 0.22)" : "rgba(224, 75, 71, 0.15)";
-      ctx.beginPath();
-      ctx.arc(sx, sy, expandRadius + pulse, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = perimeterColor;
-      ctx.font = "bold 11px sans-serif";
-      ctx.fillText(label, sx - 50, sy - expandRadius - 8);
     }
 
     // 5. Waypoint
@@ -1719,21 +1922,16 @@ class MapRenderer {
 
       ctx.restore();
     }
-
-    // 7. Grid Militar Translúcido de Satélite
-    ctx.strokeStyle = "rgba(56, 69, 80, 0.12)"; ctx.lineWidth = 0.5;
-    for (let x = 0; x < w; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
-    for (let y = 0; y < h; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
   }
 
-  drawFlightCorridor(ctx, mission, activeStageIdx, w, h) {
+  drawFlightCorridor(ctx, mission, activeStageIdx, w, h, resolvedStages = new Set()) {
     if (!mission || !mission.stages || mission.stages.length <= 1) return;
     const stages = mission.stages;
 
     const baseCenter = this.gridEngine.getCellCenter(0, 0, w, h);
     ctx.save();
-    ctx.strokeStyle = "rgba(229, 160, 13, 0.45)";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "rgba(229, 160, 13, 0.35)";
+    ctx.lineWidth = 1.2;
     ctx.setLineDash([5, 5]);
 
     ctx.beginPath();
@@ -1749,14 +1947,14 @@ class MapRenderer {
     stages.forEach((st, idx) => {
       const pos = this.getSectorScreenPosition(st, stages, w, h);
       const { x, y } = pos;
-      const isDone = idx < activeStageIdx;
-      const isActive = idx === activeStageIdx;
+      const isDone = resolvedStages && (resolvedStages.has(idx) || (st.stage_id && resolvedStages.has(st.stage_id)));
+      const isActive = (idx === activeStageIdx) && !isDone;
 
       ctx.save();
       ctx.beginPath();
       ctx.arc(x, y, 12, 0, Math.PI * 2);
       if (isDone) {
-        ctx.fillStyle = "rgba(78, 201, 92, 0.35)";
+        ctx.fillStyle = "rgba(78, 201, 92, 0.4)";
         ctx.fill();
         ctx.strokeStyle = "#4ec95c";
         ctx.lineWidth = 2;
@@ -1765,7 +1963,7 @@ class MapRenderer {
         ctx.font = "bold 10px monospace";
         ctx.fillText("✓", x - 4, y + 4);
       } else if (isActive) {
-        ctx.fillStyle = "rgba(229, 160, 13, 0.3)";
+        ctx.fillStyle = "rgba(229, 160, 13, 0.4)";
         ctx.fill();
         ctx.strokeStyle = "#e5a00d";
         ctx.lineWidth = 2;
@@ -1774,12 +1972,12 @@ class MapRenderer {
         ctx.font = "bold 10px monospace";
         ctx.fillText(String.fromCharCode(65 + idx), x - 4, y + 4);
       } else {
-        ctx.fillStyle = "rgba(56, 69, 80, 0.3)";
+        ctx.fillStyle = "rgba(56, 69, 80, 0.35)";
         ctx.fill();
-        ctx.strokeStyle = "#6e7d8a";
+        ctx.strokeStyle = "rgba(229, 160, 13, 0.5)";
         ctx.lineWidth = 1.5;
         ctx.stroke();
-        ctx.fillStyle = "#8c9ba5";
+        ctx.fillStyle = "#d0d7de";
         ctx.font = "bold 10px monospace";
         ctx.fillText(String.fromCharCode(65 + idx), x - 4, y + 4);
       }
@@ -1840,6 +2038,8 @@ class TacticalHUD {
       this.polarities = []; // true = NOT, false = DIRETO
       this.slots = ['?', '?']; // Conectivos
       this.activeSlot = 0;
+      this.isSituationOpen = false;
+      this.isProtoGuideOpen = false;
       this.consoleEl = document.getElementById('lateral-console');
     }
 
@@ -1854,11 +2054,90 @@ class TacticalHUD {
       return this.isNatural ? 'NÃO' : 'NOT';
     }
 
-    renderSector(sec, stageIdx = 0, totalStages = 1, missionTitle = '') {
+    getSensorNarrative(sensors) {
+      const entries = Object.entries(sensors || {});
+      if (entries.length === 0) return 'Nenhum sinal telemétrico detectado na varredura deste setor.';
+
+      const dictionary = {
+        CIVIS_DETECTADOS: {
+          trueVal: 'há presença de civis',
+          falseVal: 'não há civis no local'
+        },
+        FOGO_ATIVO: {
+          trueVal: 'fogo ativo no setor',
+          falseVal: 'não possui fogo no momento'
+        },
+        GAS_TOXICO: {
+          trueVal: 'vazamento de gás tóxico',
+          falseVal: 'não possui gás'
+        },
+        BATERIA_DRONE: {
+          trueVal: 'a bateria do drone deve ser considerada com carga',
+          falseVal: 'a bateria do drone está com carga crítica'
+        },
+        ENERGIA_ESTAVEL: {
+          trueVal: 'a rede de energia está estável',
+          falseVal: 'não há energia estável na rede'
+        },
+        ESTRUTURA_ABALADA: {
+          trueVal: 'a estrutura predial está abalada',
+          falseVal: 'a estrutura predial permanece íntegra'
+        },
+        CIRCUITO_A: {
+          trueVal: 'o circuito A está energizado',
+          falseVal: 'o circuito A está desenergizado'
+        },
+        CIRCUITO_B: {
+          trueVal: 'o circuito B está energizado',
+          falseVal: 'o circuito B está desenergizado'
+        },
+        VALVULA_ABERTA: {
+          trueVal: 'a válvula principal está aberta',
+          falseVal: 'a válvula principal está fechada'
+        },
+        TEMPERATURA_CRITICA: {
+          trueVal: 'a temperatura está em nível crítico',
+          falseVal: 'a temperatura está normalizada'
+        },
+        SISTEMA_REFRIGERACAO: {
+          trueVal: 'o sistema de refrigeração está ativo',
+          falseVal: 'o sistema de refrigeração está inoperante'
+        }
+      };
+
+      const clauses = entries.map(([k, v]) => {
+        const item = dictionary[k];
+        if (item) {
+          return v ? item.trueVal : item.falseVal;
+        }
+        const friendlyName = k.toLowerCase().replace(/_/g, ' ');
+        return v ? `${friendlyName} ativo` : `não possui ${friendlyName}`;
+      });
+
+      if (clauses.length === 0) return 'Nenhum dado telemétrico registrado.';
+
+      clauses[0] = clauses[0].charAt(0).toUpperCase() + clauses[0].slice(1);
+
+      if (clauses.length === 1) {
+        return `${clauses[0]}.`;
+      }
+      if (clauses.length === 2) {
+        return `${clauses[0]} e ${clauses[1]}.`;
+      }
+
+      const allExceptLast = clauses.slice(0, -1).join(', ');
+      const last = clauses[clauses.length - 1];
+      return `${allExceptLast}, e ${last}.`;
+    }
+
+    renderSector(sec, stageIdx = 0, stages = [], resolvedStages = new Set(), missionTitle = '', stageReports = []) {
       this.currentSector = sec;
       this.currentStageIdx = stageIdx;
-      this.totalStages = totalStages;
+      this.stages = stages || [];
+      this.resolvedStages = resolvedStages || new Set();
+      this.totalStages = stages.length || 1;
       this.missionTitle = missionTitle;
+      this.stageReports = stageReports || [];
 
       if (!sec) {
         this.consoleEl.innerHTML = '<div style="padding:30px; text-align:center; color:#888;">🚁 AGUARDANDO DESIGNAR SETOR</div>';
@@ -1877,28 +2156,56 @@ class TacticalHUD {
         this.slots = new Array(neededConnectors).fill('?');
       }
 
-      // 1. Sensores FLIR
-      let sensorsHtml = '';
-      for (const [k, v] of Object.entries(sec.sensors || {})) {
-        sensorsHtml += `
-          <div class="sensor-box ${v ? 'val-true' : 'val-false'}">
-            <span>${k}</span><strong>${v ? '🟢 TRUE' : '⚪ FALSE'}</strong>
+      // 1. Relatório da Inteligência (Narrativa Contínua no modo Natural, ou Grade de Códigos no modo Código)
+      let sensorsSectionHtml = '';
+      if (this.isNatural) {
+        const narrativeText = this.getSensorNarrative(sec.sensors);
+        sensorsSectionHtml = `
+          <div class="sensor-narrative-box">
+            <div class="sensor-narrative-body">${narrativeText}</div>
           </div>`;
+      } else {
+        let codeSensorsHtml = '';
+        for (const [k, v] of Object.entries(sec.sensors || {})) {
+          codeSensorsHtml += `
+            <div class="sensor-box ${v ? 'val-true' : 'val-false'}">
+              <span>${k}</span><strong>${v ? '🟢 TRUE' : '⚪ FALSE'}</strong>
+            </div>`;
+        }
+        sensorsSectionHtml = `<div class="sensors-grid">${codeSensorsHtml}</div>`;
       }
 
-      // 2. Abas de Protocolo
+      // 2. Abas de Protocolo Minimalistas & Guia Retrátil
       let tabsHtml = '';
+      const greekLabels = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot'];
       protocols.forEach((p, idx) => {
-        const active = idx === this.selectedProtoIdx 
-          ? 'border-color:var(--military-amber); color:var(--military-amber); background:rgba(229,160,13,0.18); font-weight:bold;' 
-          : '';
-        const shortTitle = p.title.includes('—') ? p.title.split('—')[1].trim() : p.title;
-        tabsHtml += `<button class="btn-secondary-tactical proto-tab-btn" data-idx="${idx}" style="${active}" title="${p.title}">[${p.type || idx + 1}] ${shortTitle}</button>`;
+        const active = idx === this.selectedProtoIdx ? 'is-active' : '';
+        const rawLabel = p.type || greekLabels[idx] || `P${idx + 1}`;
+        const cleanLabel = rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1).toLowerCase();
+        tabsHtml += `<button class="proto-tab-btn ${active}" data-idx="${idx}" title="${p.title}">${cleanLabel}</button>`;
       });
 
-      // 3. Fórmula com Polarity Toggles [ + / NOT ] e Conectivos [ ? ]
-      let formulaHtml = '<div style="display:flex; flex-wrap:wrap; align-items:center; gap:4px; font-family:var(--font-mono); font-size:0.84rem;">';
-      if (tokens.length >= 2) formulaHtml += '<span style="color:#6e7d8a; font-weight:bold;">(</span>';
+      const selectedLabel = (proto.type || greekLabels[this.selectedProtoIdx] || `P${this.selectedProtoIdx + 1}`);
+      const cleanSelectedLabel = selectedLabel.charAt(0).toUpperCase() + selectedLabel.slice(1).toLowerCase();
+      const protoFullTitle = proto.title || `Protocolo ${cleanSelectedLabel}`;
+      const protoHint = proto.hint || 'Verifique a leitura dos sensores e conectores lógicos para assegurar a operação.';
+
+      const protoGuideHtml = `
+        <details class="proto-guide-accordion" id="proto-guide-details" ${this.isProtoGuideOpen ? 'open' : ''}>
+          <summary class="proto-guide-summary">
+            <span>ℹ️ Diretriz: Protocolo ${cleanSelectedLabel}</span>
+            <span class="situation-chevron">▾</span>
+          </summary>
+          <div class="proto-guide-content">
+            <div style="font-weight:700; color:#dbe4ec; margin-bottom:3px;">📋 ${protoFullTitle}</div>
+            <div style="color:#9bb0c2; line-height:1.4;">💡 ${protoHint}</div>
+          </div>
+        </details>
+      `;
+
+      // 3. Fórmula com Polarity Toggles [ + / NOT ] e Conectivos [ ? ] (Pílulas Arredondadas)
+      let formulaHtml = '<div style="display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-family:var(--font-mono); font-size:0.88rem;">';
+      if (tokens.length >= 2) formulaHtml += '<span style="color:#6e7d8a; font-weight:bold; font-size:1.05rem;">(</span>';
 
       tokens.forEach((token, idx) => {
         const isNot = !!this.polarities[idx];
@@ -1907,13 +2214,13 @@ class TacticalHUD {
 
         formulaHtml += `
           <button class="polarity-btn ${polClass}" data-pidx="${idx}" title="Alternar Direto (+) ou Invertido (NOT)">
-            [ ${polLabel} ]
+            ${polLabel}
           </button>
           <span class="sensor-token">${token}</span>
         `;
 
         if (idx === 1 && tokens.length > 2) {
-          formulaHtml += '<span style="color:#6e7d8a; font-weight:bold;">)</span>';
+          formulaHtml += '<span style="color:#6e7d8a; font-weight:bold; font-size:1.05rem;">)</span>';
         }
 
         if (idx < tokens.length - 1) {
@@ -1921,42 +2228,63 @@ class TacticalHUD {
           const isActiveSlot = idx === this.activeSlot ? 'is-active' : '';
           formulaHtml += `
             <button class="slot-btn ${isActiveSlot}" data-sidx="${idx}" title="Clique para selecionar este operador">
-              [ ${this.getOpLabel(slotVal)} ]
+              ${this.getOpLabel(slotVal)}
             </button>
           `;
         }
       });
       formulaHtml += '</div>';
 
-      const stageBadge = totalStages > 1 
-        ? `<div class="stage-badge-box">
-             <span>📍 ${missionTitle || 'SURTIDA TÁTICA'}</span>
-             <span>ETAPA ${stageIdx + 1} / ${totalStages}</span>
-           </div>`
-        : '';
+      const isCurrentSectorResolved = this.resolvedStages && (this.resolvedStages.has(stageIdx) || (sec.stage_id && this.resolvedStages.has(sec.stage_id)));
+      const currentRep = (this.stageReports || []).find(r => r.stageIdx === stageIdx);
+      const currentSaved = currentRep ? currentRep.isSaved : true;
 
       const situationReportHtml = sec.situation_report ? `
-        <div class="situation-report-box">
-          <strong style="color:var(--military-amber); font-size:0.7rem; letter-spacing:0.5px;">🚨 SITUAÇÃO:</strong> ${sec.situation_report}
-        </div>
+        <details class="situation-accordion" id="situation-details" ${this.isSituationOpen ? 'open' : ''}>
+          <summary class="situation-summary">
+            <span>${isCurrentSectorResolved ? (currentSaved ? '✅ Status: Pacificado' : '🏚️ Status: Colapso') : 'ℹ️ Relatório de Situação'}</span>
+            <span class="situation-chevron">▾</span>
+          </summary>
+          <div class="situation-content">
+            ${!isCurrentSectorResolved ? `
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.72rem; color:#ff8888; font-family:var(--font-mono); font-weight:bold;">
+                <span>🚨 EMERGÊNCIA</span>
+                <span>⏱️ Ouro: 10s | Colapso: 130s</span>
+              </div>
+            ` : ''}
+            <div>${isCurrentSectorResolved ? (currentSaved ? 'Setor pacificado e estrutura assegurada com sucesso!' : 'Estrutura não salva a tempo (Colapso predial — 0 pts).') : sec.situation_report}</div>
+            ${!isCurrentSectorResolved ? `<div style="margin-top:4px; font-size:0.70rem; color:#8c9ba5;">💡 100% nos primeiros 10s. Danos a cada 30s. Após 130s, nota zero.</div>` : ''}
+          </div>
+        </details>
       ` : '';
 
+      // Atualizar o nome do setor no Topo do Centro de Comando
+      const stageChar = String.fromCharCode(65 + stageIdx);
+      const rawSectorName = sec.sector_name || 'SETOR ATIVO';
+      const cleanSectorName = rawSectorName.replace(/^Ponto\s+[A-Za-z0-9]+:\s*/i, '').trim();
+      const activeSectorHeaderEl = document.getElementById('active-sector-header-name');
+      if (activeSectorHeaderEl) {
+        activeSectorHeaderEl.textContent = `[${stageChar}] ${cleanSectorName}`;
+      }
+
       this.consoleEl.innerHTML = `
-        ${stageBadge}
-        ${situationReportHtml}
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span class="console-section-title">🛰️ SENSORES — ${sec.sector_name}</span>
-          <button id="btn-toggle-syntax" class="btn-secondary-tactical" style="padding:1px 5px; font-size:0.7rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span class="console-section-title" style="margin-bottom:0; font-size:0.78rem; border-bottom:none;">📡 RELATÓRIO DA INTELIGÊNCIA</span>
+          <button id="btn-toggle-syntax" class="btn-secondary-tactical" style="padding:2px 6px; font-size:0.72rem;">
             ${this.isNatural ? '🔤 Natural' : '💻 Código'}
           </button>
         </div>
-        <div class="sensors-grid">${sensorsHtml}</div>
-        <span class="console-section-title">📋 PROTOCOLO TÁTICO</span>
+        ${situationReportHtml}
+        ${sensorsSectionHtml}
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; margin-bottom:3px;">
+          <span class="console-section-title" style="margin-bottom:0; font-size:0.76rem; border-bottom:none;">📋 PROTOCOLO TÁTICO</span>
+        </div>
         <div class="proto-tabs-grid">${tabsHtml}</div>
-        <div class="protocol-card">
+        ${protoGuideHtml}
+        <div class="protocol-card" style="margin-top:4px;">
           <div class="formula-display">${formulaHtml}</div>
           <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
-            <span style="font-size:0.7rem; color:var(--text-muted); white-space:nowrap;">Operador [ ? ]:</span>
+            <span style="font-size:0.72rem; color:var(--text-muted); white-space:nowrap;">Operador [ ? ]:</span>
             <div class="operator-palette" style="flex:1;">
               <button class="op-btn" data-op="AND">${this.getOpLabel('AND')}</button>
               <button class="op-btn" data-op="OR">${this.getOpLabel('OR')}</button>
@@ -1964,17 +2292,33 @@ class TacticalHUD {
             </div>
           </div>
         </div>
-        <div style="display:flex; gap:6px; margin-top:auto;">
-          <button id="btn-exec" class="btn-tactical" style="flex:1;">🚀 EXECUTAR PROTOCOLO</button>
-          <button id="btn-hint" class="btn-secondary-tactical" style="color:var(--military-amber);">💡 DICA</button>
+        <div style="display:flex; gap:6px; margin-top:auto; padding-top:6px;">
+          <button id="btn-exec" class="btn-tactical" style="flex:1;" ${isCurrentSectorResolved ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+            ${isCurrentSectorResolved ? '✅ SETOR JÁ PACIFICADO' : '🚀 EXECUTAR PROTOCOLO'}
+          </button>
+          <button id="btn-hint" class="btn-secondary-tactical" style="color:#9bb0c2; font-size:0.78rem; padding:4px 8px;">💡 DICA</button>
         </div>
       `;
 
       // Eventos da Mesa
+      const detailsEl = document.getElementById('situation-details');
+      if (detailsEl) {
+        detailsEl.ontoggle = () => {
+          this.isSituationOpen = detailsEl.open;
+        };
+      }
+
+      const guideDetailsEl = document.getElementById('proto-guide-details');
+      if (guideDetailsEl) {
+        guideDetailsEl.ontoggle = () => {
+          this.isProtoGuideOpen = guideDetailsEl.open;
+        };
+      }
+
       document.getElementById('btn-toggle-syntax').onclick = () => {
         this.audio.playClick();
         this.isNatural = !this.isNatural;
-        this.renderSector(sec, stageIdx, totalStages, missionTitle);
+        this.renderSector(sec, stageIdx, this.stages, this.resolvedStages, missionTitle, this.stageReports);
       };
       document.querySelectorAll('.proto-tab-btn').forEach(btn => {
         btn.onclick = () => {
@@ -1982,7 +2326,7 @@ class TacticalHUD {
           this.selectedProtoIdx = parseInt(btn.getAttribute('data-idx'));
           this.polarities = [];
           this.slots = ['?', '?'];
-          this.renderSector(sec, stageIdx, totalStages, missionTitle);
+          this.renderSector(sec, stageIdx, this.stages, this.resolvedStages, missionTitle, this.stageReports);
         };
       });
       document.querySelectorAll('.polarity-btn').forEach(btn => {
@@ -1990,14 +2334,14 @@ class TacticalHUD {
           this.audio.playClick();
           const pidx = parseInt(btn.getAttribute('data-pidx'));
           this.polarities[pidx] = !this.polarities[pidx];
-          this.renderSector(sec, stageIdx, totalStages, missionTitle);
+          this.renderSector(sec, stageIdx, this.stages, this.resolvedStages, missionTitle, this.stageReports);
         };
       });
       document.querySelectorAll('.slot-btn').forEach(btn => {
         btn.onclick = () => {
           this.audio.playClick();
           this.activeSlot = parseInt(btn.getAttribute('data-sidx'));
-          this.renderSector(sec, stageIdx, totalStages, missionTitle);
+          this.renderSector(sec, stageIdx, this.stages, this.resolvedStages, missionTitle, this.stageReports);
         };
       });
       document.querySelectorAll('.op-btn').forEach(btn => {
@@ -2005,10 +2349,11 @@ class TacticalHUD {
           this.audio.playClick();
           this.slots[this.activeSlot] = btn.getAttribute('data-op');
           this.activeSlot = (this.activeSlot + 1) % this.slots.length;
-          this.renderSector(sec, stageIdx, totalStages, missionTitle);
+          this.renderSector(sec, stageIdx, this.stages, this.resolvedStages, missionTitle, this.stageReports);
         };
       });
       document.getElementById('btn-exec').onclick = () => {
+        if (isCurrentSectorResolved) return;
         this.bus.emit('EXECUTE_PROTOCOL', {
           sector: sec,
           protocol: proto,
@@ -2138,17 +2483,29 @@ class OperacaoNexo {
       this.gameState = 'MENU'; // MENU, GAMEPLAY, PAUSED, VICTORY, GAMEOVER
       this.currentMode = 'training'; // training, ranked
       this.score = 0;
-      this.timer = 60;
+      this.sectorElapsedTime = 0;
       this.streak = 0;
+      this.stageReports = [];
 
       this.currentSeasonIdx = 0;
       this.currentWeekIdx = 0;
       this.currentStageIdx = 0;
+      this.resolvedStages = new Set();
       this.currentMission = null;
       this.currentSector = null;
       this.hintsUsedInSector = 0;
 
       this.init();
+    }
+
+    getSectorIntegrity(t) {
+      if (t <= 10) return 1.0;
+      if (t <= 130) {
+        const elapsedInSpan = t - 10;
+        const factor = 1.0 - (elapsedInSpan / 120) * 0.80;
+        return Math.max(0.20, factor);
+      }
+      return 0.0;
     }
 
     init() {
@@ -2164,14 +2521,30 @@ class OperacaoNexo {
         ro.observe(this.canvas.parentElement);
       }
 
-      // Clique no canvas -> Move drone
+      // Seleção de Setor via Bus (Barra do HUD ou Atalhos)
+      this.bus.on('SELECT_STAGE', (idx) => {
+        if (this.gameState === 'GAMEPLAY') {
+          this.selectStage(idx);
+        }
+      });
+
+      // Clique no canvas -> Seleciona Setor [A, B, C] ou Move Drone livremente
       this.canvas.addEventListener('pointerdown', (e) => {
         if (this.gameState !== 'GAMEPLAY') return;
         const rect = this.canvas.getBoundingClientRect();
         const x = (e.clientX - rect.left) * (this.canvas.width / rect.width);
         const y = (e.clientY - rect.top) * (this.canvas.height / rect.height);
-        this.drone.setDestination(x, y);
-        this.audio.playClick();
+
+        const stages = (this.currentMission && this.currentMission.stages) ? this.currentMission.stages : [];
+        const clickedStageIdx = this.renderer.getStageAtPosition(x, y, stages, this.canvas.width, this.canvas.height);
+
+        if (clickedStageIdx !== -1) {
+          this.audio.playClick();
+          this.selectStage(clickedStageIdx);
+        } else {
+          this.drone.setDestination(x, y);
+          this.audio.playClick();
+        }
       });
 
       // Atalhos de Teclado (ESC ou P para Pausa — Bloqueado no Ranqueado)
@@ -2201,31 +2574,42 @@ class OperacaoNexo {
         let threatRatio = 0;
         if (this.gameState === 'GAMEPLAY') {
           this.drone.update(dt);
-          const totalTime = (this.currentSector && this.currentSector.time_limit) ? this.currentSector.time_limit : 60;
-          if (this.timer > 0) {
-            this.timer -= dt;
-            threatRatio = Math.min(1.0, Math.max(0, 1.0 - (this.timer / totalTime)));
-            const timeEl = document.getElementById('hud-time-badge');
-            if (timeEl) {
-              const secLeft = Math.ceil(this.timer);
-              if (threatRatio > 0.7) {
-                timeEl.textContent = `TIME: ${secLeft}s 🔴 CRÍTICO`;
-                timeEl.style.color = '#ff3333';
-              } else if (threatRatio > 0.35) {
-                timeEl.textContent = `TIME: ${secLeft}s 🟡 EXPANDINDO`;
-                timeEl.style.color = 'var(--military-amber)';
-              } else {
-                timeEl.textContent = `TIME: ${secLeft}s 🟢 SEGURO`;
-                timeEl.style.color = 'var(--military-green)';
-              }
-            }
-            if (this.timer <= 0) {
-              this.handleTimeout();
+          this.sectorElapsedTime += dt;
+          
+          const integrity = this.getSectorIntegrity(this.sectorElapsedTime);
+          const integrityPercent = Math.round(integrity * 100);
+          threatRatio = Math.min(1.5, this.sectorElapsedTime / 130);
+
+          const timeEl = document.getElementById('hud-time-badge');
+          if (timeEl) {
+            const secElapsed = Math.floor(this.sectorElapsedTime);
+            const min = Math.floor(secElapsed / 60);
+            const sec = secElapsed % 60;
+            const timeFormatted = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+
+            if (this.sectorElapsedTime <= 10) {
+              timeEl.textContent = `⏱️ ${timeFormatted} | ESTRUTURA: 100% 🟢 ⭐⭐⭐`;
+              timeEl.style.color = 'var(--military-green)';
+            } else if (this.sectorElapsedTime <= 40) {
+              timeEl.textContent = `⏱️ ${timeFormatted} | ESTRUTURA: ${integrityPercent}% 🟢 ⭐⭐⭐`;
+              timeEl.style.color = 'var(--military-green)';
+            } else if (this.sectorElapsedTime <= 70) {
+              timeEl.textContent = `⏱️ ${timeFormatted} | ESTRUTURA: ${integrityPercent}% 🟡 ⭐⭐`;
+              timeEl.style.color = 'var(--military-amber)';
+            } else if (this.sectorElapsedTime <= 100) {
+              timeEl.textContent = `⏱️ ${timeFormatted} | ESTRUTURA: ${integrityPercent}% 🟠 ⭐⭐`;
+              timeEl.style.color = '#ff9933';
+            } else if (this.sectorElapsedTime <= 130) {
+              timeEl.textContent = `⏱️ ${timeFormatted} | RISCO COLAPSO: ${integrityPercent}% 🔴 ⭐`;
+              timeEl.style.color = '#ff3333';
+            } else {
+              timeEl.textContent = `⏱️ ${timeFormatted} | 🏚️ ESTRUTURA NÃO SALVA (0% / 0 pts)`;
+              timeEl.style.color = '#8c9ba5';
             }
           }
         }
 
-        this.renderer.render(this.drone, this.currentSector, { x: this.drone.targetX, y: this.drone.targetY }, threatRatio, this.currentMission, this.currentStageIdx);
+        this.renderer.render(this.drone, this.currentSector, { x: this.drone.targetX, y: this.drone.targetY }, threatRatio, this.currentMission, this.currentStageIdx, this.resolvedStages, this.stageReports);
         requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
@@ -2392,9 +2776,12 @@ class OperacaoNexo {
       this.currentMode = mode;
       this.score = 0;
       this.streak = 0;
+      this.sectorElapsedTime = 0;
+      this.stageReports = [];
       this.currentSeasonIdx = 0;
       this.currentWeekIdx = 0;
       this.currentStageIdx = 0;
+      this.resolvedStages = new Set();
       this.gameState = 'GAMEPLAY';
 
       document.getElementById('main-menu-overlay').style.display = 'none';
@@ -2459,7 +2846,7 @@ class OperacaoNexo {
     }
 
     loadSeasonWeek(seasonIdx, weekIdx) {
-      const seasons = LEVELS_DATA.temporadas || [];
+      const seasons = (window.LEVELS_DATA || {}).temporadas || [];
       const season = seasons[seasonIdx] || seasons[0];
       const weeks = season.weeks || [];
 
@@ -2471,17 +2858,20 @@ class OperacaoNexo {
       this.currentMission = JSON.parse(JSON.stringify(weeks[weekIdx]));
       this.currentMission.mission_title = `${season.region_name} • ${this.currentMission.week_title}`;
       this.currentStageIdx = 0;
+      this.resolvedStages = new Set();
+      this.stageReports = [];
+      this.sectorElapsedTime = 0;
 
       // Carrega textura do mapa se houver
       if (this.renderer && this.currentMission.map_image) {
         this.renderer.loadMap(this.currentMission.map_image);
       }
 
-      this.loadStage(0);
+      this.selectStage(0);
     }
 
     loadNextWeek() {
-      const seasons = LEVELS_DATA.temporadas || [];
+      const seasons = (window.LEVELS_DATA || {}).temporadas || [];
       const season = seasons[this.currentSeasonIdx] || seasons[0];
       const weeks = season.weeks || [];
 
@@ -2497,18 +2887,20 @@ class OperacaoNexo {
       }
     }
 
-    loadStage(idx) {
-      this.currentStageIdx = idx;
-      const stages = this.currentMission.stages || [];
-      if (idx >= stages.length) {
-        this.handleVictory(this.currentMission, null);
-        return;
-      }
+    selectStage(idx) {
+      const stages = this.currentMission ? (this.currentMission.stages || []) : [];
+      if (idx < 0 || idx >= stages.length) return;
 
+      this.currentStageIdx = idx;
       const st = stages[idx];
       this.currentSector = st;
-      this.timer = st.time_limit || 45;
       this.hintsUsedInSector = 0;
+
+      // Se for setor novo/não resolvido, reinicia o cronômetro do setor
+      const isResolved = this.resolvedStages && (this.resolvedStages.has(idx) || (st.stage_id && this.resolvedStages.has(st.stage_id)));
+      if (!isResolved) {
+        this.sectorElapsedTime = 0;
+      }
 
       if (st) {
         const targetPos = this.renderer.getSectorScreenPosition(st, stages, this.canvas.width || 700, this.canvas.height || 520);
@@ -2518,19 +2910,50 @@ class OperacaoNexo {
       this.hud.selectedProtoIdx = 0;
       this.hud.polarities = [];
       this.hud.slots = ['?', '?'];
-      this.hud.renderSector(st, idx, stages.length, this.currentMission.mission_title);
+      this.hud.renderSector(st, idx, stages, this.resolvedStages, this.currentMission.mission_title, this.stageReports);
+    }
+
+    loadStage(idx) {
+      this.selectStage(idx);
     }
 
     handleStageSuccess(stage, protocol) {
       this.audio.playSuccess();
 
-      const timeRatio = Math.max(0, this.timer / (stage.time_limit || 45));
-      const mult = this.currentMode === 'ranked' ? 1.5 : 1.0;
-      const basePoints = Math.floor((stage.base_score || 1000) * mult);
-      const agilityBonus = Math.floor(basePoints * (timeRatio * 0.45));
-      const gained = basePoints + agilityBonus;
+      this.resolvedStages.add(this.currentStageIdx);
+      if (stage && stage.stage_id) {
+        this.resolvedStages.add(stage.stage_id);
+      }
+
+      const integrity = this.getSectorIntegrity(this.sectorElapsedTime);
+      const integrityPercent = Math.round(integrity * 100);
+      const isSaved = integrity > 0;
+      const basePoints = stage.base_score || 1000;
+      const modeMult = this.currentMode === 'ranked' ? 1.5 : 1.0;
+
+      let gained = 0;
+      if (isSaved) {
+        if (this.sectorElapsedTime <= 10) {
+          gained = Math.floor(basePoints * 1.5 * modeMult);
+        } else {
+          gained = Math.floor(basePoints * (integrity * 1.25) * modeMult);
+        }
+        this.streak++;
+      } else {
+        gained = 0; // Nota zero por colapso estrutural (tempo excedeu 130s)
+        this.streak = 0;
+      }
+
       this.score += gained;
-      this.streak++;
+
+      this.stageReports.push({
+        stageIdx: this.currentStageIdx,
+        stageName: stage.sector_name || `Ponto ${String.fromCharCode(65 + this.currentStageIdx)}`,
+        timeSpent: this.sectorElapsedTime,
+        integrityPercent,
+        isSaved,
+        gained
+      });
 
       const scoreBadge = document.getElementById('hud-score-badge');
       if (scoreBadge) {
@@ -2539,11 +2962,26 @@ class OperacaoNexo {
       const streakBadge = document.getElementById('hud-streak-badge');
       if (streakBadge) streakBadge.textContent = `🔥 OFENSIVA: ${this.streak}`;
 
-      const stages = this.currentMission.stages || [];
-      if (this.currentStageIdx + 1 < stages.length) {
-        this.loadStage(this.currentStageIdx + 1);
-      } else {
+      const stages = this.currentMission ? (this.currentMission.stages || []) : [];
+      
+      // Verifica se todos os setores da semana foram pacificados
+      const allResolved = stages.length > 0 && stages.every((st, i) => this.resolvedStages.has(i) || (st.stage_id && this.resolvedStages.has(st.stage_id)));
+
+      if (allResolved) {
         this.handleVictory(this.currentMission, protocol);
+      } else {
+        // Renderiza o setor atual como pacificado
+        this.hud.renderSector(stage, this.currentStageIdx, stages, this.resolvedStages, this.currentMission.mission_title, this.stageReports);
+
+        // Seleciona automaticamente o próximo setor pendente
+        const nextPendingIdx = stages.findIndex((st, i) => !this.resolvedStages.has(i) && (!st.stage_id || !this.resolvedStages.has(st.stage_id)));
+        if (nextPendingIdx !== -1) {
+          setTimeout(() => {
+            if (this.gameState === 'GAMEPLAY') {
+              this.selectStage(nextPendingIdx);
+            }
+          }, 600);
+        }
       }
     }
 
@@ -2551,10 +2989,45 @@ class OperacaoNexo {
       this.gameState = 'VICTORY';
       this.audio.playSuccess();
 
-      const stars = this.streak >= 2 ? 3 : (this.hintsUsedInSector === 0 ? 2 : 1);
-      document.getElementById('victory-stars').textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
-      document.getElementById('victory-score-report').innerHTML = `Pontuação Total da Surtida: <strong style="color:var(--military-green);">${this.score} pts</strong> (Ofensiva: 🔥 ${this.streak})`;
-      document.getElementById('victory-details-report').textContent = `${mission.mission_title || mission.week_title || 'Missão'} cumprida com maestria! Todos os setores da surtida foram assegurados.`;
+      const stages = mission.stages || [];
+      const numStages = stages.length || 1;
+      const maxPossibleScore = Math.floor(numStages * 1500 * (this.currentMode === 'ranked' ? 1.5 : 1.0));
+      const efficiency = maxPossibleScore > 0 ? (this.score / maxPossibleScore) : 0;
+      
+      let stars = 0;
+      if (efficiency >= 0.80) stars = 3;
+      else if (efficiency >= 0.50) stars = 2;
+      else if (efficiency >= 0.20) stars = 1;
+      else stars = 0;
+
+      const savedCount = this.stageReports.filter(r => r.isSaved).length;
+
+      document.getElementById('victory-stars').textContent = stars > 0 ? ('⭐'.repeat(stars) + '☆'.repeat(3 - stars)) : '☆☆☆ (Estruturas Não Salvas)';
+      document.getElementById('victory-score-report').innerHTML = `Pontuação Total da Surtida: <strong style="color:var(--military-green);">${this.score} / ${maxPossibleScore} pts</strong> (${Math.round(efficiency * 100)}% Eficiência | ${savedCount}/${numStages} Salvos)`;
+
+      // Boletim Detalhado por Prédio
+      let reportHtml = `<div style="text-align:left; background:#11151a; border:1px solid #232d36; border-radius:4px; padding:8px 10px; margin-top:8px; font-size:0.75rem; font-family:var(--font-mono);">`;
+      reportHtml += `<div style="color:var(--military-amber); font-weight:bold; margin-bottom:6px; border-bottom:1px solid #232d36; padding-bottom:3px;">📋 BOLETIM DE RESGATE POR EDIFÍCIO:</div>`;
+      
+      this.stageReports.forEach((rep) => {
+        const min = Math.floor(rep.timeSpent / 60);
+        const sec = Math.floor(rep.timeSpent % 60);
+        const timeStr = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+        const icon = rep.isSaved ? (rep.integrityPercent >= 100 ? '🏆' : (rep.integrityPercent >= 60 ? '🟢' : '🟡')) : '🏚️';
+        const statusText = rep.isSaved ? `${rep.integrityPercent}% Integridade` : `<span style="color:#ff6666;">Colapso / Não Salvo</span>`;
+        
+        reportHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:4px; border-bottom:1px dashed #1a222a; padding-bottom:2px;">
+          <span>${icon} <strong>${rep.stageName}</strong> (⏱️ ${timeStr})</span>
+          <span>${statusText} ➔ <strong style="color:${rep.gained > 0 ? '#4ec95c' : '#888'};">+${rep.gained} pts</strong></span>
+        </div>`;
+      });
+      
+      reportHtml += `</div>`;
+
+      document.getElementById('victory-details-report').innerHTML = `
+        <div>${mission.mission_title || mission.week_title || 'Missão'} concluída! ${savedCount === numStages ? 'Todos os setores assegurados com honras militares!' : `${savedCount} de ${numStages} estruturas salvas a tempo.`}</div>
+        ${reportHtml}
+      `;
 
       document.getElementById('victory-overlay').style.display = 'flex';
     }
@@ -2596,15 +3069,12 @@ class OperacaoNexo {
     }
   }
 
-// Inicialização Automática se executado via ES Module
-if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', () => {
-    window.nexoApp = new OperacaoNexo();
-  });
-}
-
   // INICIALIZAÇÃO
-  window.addEventListener('DOMContentLoaded', () => {
-    window.nexoGame = new OperacaoNexo();
-  });
+  if (typeof window !== 'undefined') {
+    window.addEventListener('DOMContentLoaded', () => {
+      window.nexoApp = new OperacaoNexo();
+      window.nexoGame = window.nexoApp;
+    });
+  }
 })();
+
