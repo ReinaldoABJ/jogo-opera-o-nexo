@@ -505,60 +505,103 @@ export class MapRenderer {
       ctx.setLineDash([]);
     }
 
-    // 6. Drone Militar Tático com Vídeo/Hélices Animadas
+    // 6. Drone Militar Tático com Hélices Animadas (Transparência Total)
     if (drone) {
+      // 6.1 Sombra projetada no terreno (deslocada suavemente para dar efeito de altitude)
+      ctx.save();
+      ctx.translate(drone.x + 5, drone.y + 7);
+      ctx.rotate(drone.angle);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 22, 14, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // 6.2 Corpo do Drone & Rotores Animados
       ctx.save();
       ctx.translate(drone.x, drone.y);
       ctx.rotate(drone.angle);
 
-      const drawSize = 46;
+      const drawW = 54;
+      const drawH = 30;
 
-      // Sombra projetada no terreno
-      ctx.save();
-      ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
-      ctx.beginPath();
-      ctx.arc(3, 4, drawSize * 0.38, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      if (this.droneVideo && this.droneVideo.readyState >= 2) {
-        // Tenta garantir reprodução ativa
-        if (this.droneVideo.paused) {
-          this.droneVideo.play().catch(() => {});
-        }
-        ctx.drawImage(this.droneVideo, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
+      const droneImg = this.bank.get("drone");
+      if (droneImg && droneImg.naturalWidth > 0) {
+        ctx.drawImage(droneImg, -drawW / 2, -drawH / 2, drawW, drawH);
       } else {
-        const droneImg = this.bank.get("drone");
-        if (droneImg && droneImg.naturalWidth > 0) {
-          if (drone.isMoving) {
-            this.rotorAngle += 0.5;
-            ctx.save();
-            ctx.rotate(this.rotorAngle);
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(0, 0, 22, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
-          }
-          ctx.drawImage(droneImg, -drawSize / 2, -drawSize / 2, drawSize, drawSize);
-        } else {
-          this.rotorAngle += 0.4;
-          const rots = [{x:-16,y:-16},{x:16,y:-16},{x:-16,y:16},{x:16,y:16}];
-          rots.forEach(pos => {
-            ctx.save(); ctx.translate(pos.x, pos.y); ctx.rotate(this.rotorAngle);
-            ctx.fillStyle = "rgba(140, 160, 180, 0.7)"; ctx.fillRect(-10, -1.5, 20, 3);
-            ctx.restore();
-          });
+        ctx.fillStyle = "#3a4738";
+        ctx.beginPath();
+        ctx.roundRect(-8, -12, 16, 24, 3);
+        ctx.fill();
+        ctx.strokeStyle = "#1b221a";
+        ctx.stroke();
+      }
 
-          ctx.fillStyle = "#3b4a3c";
-          ctx.beginPath(); ctx.roundRect(-10, -12, 20, 24, 4); ctx.fill();
-          ctx.strokeStyle = "#273038"; ctx.stroke();
+      // 6.3 Quatro Rotores com Rotação Procedural em Alta Velocidade (Motion Blur)
+      this.rotorAngle += 0.55;
+      const motors = [
+        { x: -21, y: 4, dir: 1 },    // Front-Left
+        { x: 21, y: 4, dir: -1 },    // Front-Right
+        { x: -22, y: -9, dir: -1 },  // Rear-Left
+        { x: 22, y: -9, dir: 1 }     // Rear-Right
+      ];
 
-          ctx.fillStyle = "#e5a00d"; ctx.beginPath(); ctx.arc(0, -10, 3, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = "#4ec95c"; ctx.fillRect(-8, 8, 2, 2);
-          ctx.fillStyle = "#e04b47"; ctx.fillRect(6, 8, 2, 2);
-        }
+      motors.forEach(m => {
+        ctx.save();
+        ctx.translate(m.x, m.y);
+        ctx.rotate(this.rotorAngle * m.dir);
+
+        // Disco translúcido de rotação da hélice
+        ctx.fillStyle = "rgba(220, 240, 255, 0.12)";
+        ctx.beginPath();
+        ctx.arc(0, 0, 11, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(0, 0, 11, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Rastros das pás da hélice em movimento
+        ctx.fillStyle = "rgba(240, 245, 255, 0.65)";
+        ctx.fillRect(-10, -1, 20, 2);
+        ctx.fillRect(-1, -10, 2, 20);
+
+        ctx.restore();
+      });
+
+      // 6.4 LEDs de Navegação Militar
+      // LED Front-Left (Vermelho de Bombordo)
+      ctx.fillStyle = "#ff4444";
+      ctx.beginPath();
+      ctx.arc(-21, 5, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255, 68, 68, 0.45)";
+      ctx.beginPath();
+      ctx.arc(-21, 5, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // LED Front-Right (Verde de Boreste)
+      ctx.fillStyle = "#44ff44";
+      ctx.beginPath();
+      ctx.arc(21, 5, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(68, 255, 68, 0.45)";
+      ctx.beginPath();
+      ctx.arc(21, 5, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Flash Estroboscópico de Fuselagem (Branco Pulsante)
+      if (Date.now() % 600 < 120) {
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(0, -3, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+        ctx.beginPath();
+        ctx.arc(0, -3, 6, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       ctx.restore();
