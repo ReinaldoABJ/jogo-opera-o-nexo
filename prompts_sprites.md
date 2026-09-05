@@ -16,14 +16,23 @@ Sprites gerados, fundo removido e integrados ao jogo em assets/sprites/buildings
 
 ---
 
-## ✅ LOTE 2 — Parques, Praças & Áreas Verdes (CONCLUÍDO)
+## ✅ LOTE 2 — Parques, Praças & Áreas Verdes
 
-Sprites gerados e integrados ao jogo em `assets/sprites/buildings/`:
-- `park_plaza_fountain.png`
-- `park_dense_trees.png`
-- `park_garden.png`
-- `park_playground.png`
-- `park_neighborhood.png`
+* **Lote 2.1 (Quadras Simples 1x1 — Concluído):**
+  - `park_plaza_fountain.png`
+  - `park_dense_trees.png`
+  - `park_garden.png`
+  - `park_playground.png`
+  - `park_neighborhood.png`
+
+* **Lote 2.2 (Super-Quadras 2x2 — Novos Prompts Prontos):**
+  - Documento completo com 6 novos prompts em: [`docs/prompts/prompts_pracas_parques_2x2.md`](docs/prompts/prompts_pracas_parques_2x2.md)
+  - `mega_park_central_fountain.png`
+  - `mega_park_botanical_garden.png`
+  - `mega_park_sports_complex.png`
+  - `mega_park_ecological_lake.png`
+  - `mega_park_cultural_plaza.png`
+  - `mega_park_family_playground.png`
 
 ---
 
